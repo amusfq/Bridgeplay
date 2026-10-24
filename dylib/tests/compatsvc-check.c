@@ -817,8 +817,8 @@ static void rebuild_route_cases(void) {
 
     ready_to_rebuild();
     rebuild_prefix(build_request(REQ_HAS_APPID, 480), (uintptr_t)response_buf);
-    check(spawned_count == 10 && strcmp(spawned[9], "discard-backup") == 0,
-          "a plain rebuild discards the original");
+    check(spawned_count == 10 && strcmp(spawned[9], "keep-backup") == 0,
+          "a plain rebuild from a page still keeps the original");
 
     ready_to_rebuild();
     spawn_result = 1;

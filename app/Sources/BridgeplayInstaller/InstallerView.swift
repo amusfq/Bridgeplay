@@ -8,7 +8,7 @@ struct InstallerView: View {
         switch model.stage {
         case .checking: tr("Check your installation")
         case .review: model.isCurrent ? tr("Finish setting up Bridgeplay") : model.updating ? tr("Update Bridgeplay") : tr("Install Bridgeplay")
-        case .downloading: model.settingUp ? tr("Downloading graphics and engine") : tr("Downloading Bridgeplay")
+        case .downloading: model.settingUp ? tr("Downloading Apple's graphics") : tr("Downloading Bridgeplay")
         case .installing: model.settingUp ? tr("Setting up Bridgeplay") : tr("Installing Bridgeplay")
         case .done: model.isCurrent ? tr("Bridgeplay is up to date") : tr("Bridgeplay is ready")
         case .failed: tr("Installation could not continue")
@@ -67,7 +67,7 @@ struct InstallerView: View {
         case .checking: tr("Checking the latest release and the application on this Mac.")
         case .review: tr("The application goes in Applications. Your settings, game prefixes and saves are kept.")
         case .downloading: model.settingUp
-            ? tr("Apple's Game Porting Toolkit and the WineCX engine. The download is checked against Bridgeplay's signature before anything is installed.")
+            ? tr("Apple's Game Porting Toolkit and Bridgeplay's graphics layers, checked against Bridgeplay's signature. Setup adds the WineCX engine later.")
             : tr("Only the application is downloaded here. Its signature is checked before installation.")
         case .installing: model.settingUp
             ? tr("Installing Steam, Apple's graphics, the engine and the default settings. Please keep the installer open.")
@@ -142,7 +142,7 @@ struct InstallerView: View {
             }
             Text(model.components == nil
                  ? tr("Close Bridgeplay before updating. Steam setup and any required permissions are handled by Bridgeplay after installation.")
-                 : tr("Steam, Apple's graphics and the WineCX engine are installed too, since this Mac doesn't have them yet."))
+                 : tr("Steam and Apple's graphics are installed too. Setup adds the WineCX engine later."))
                 .font(BP.sans(12)).foregroundStyle(BP.fg3).fixedSize(horizontal: false, vertical: true)
         case .downloading, .installing:
             SetupCard {

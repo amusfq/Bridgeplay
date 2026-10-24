@@ -179,6 +179,7 @@ enum Uninstall {
         // that is about to be deleted would leave Steam pointing at nothing.
         let restoredDefault = try SteamDefaultTool.restore(
             in: leftovers.steamConfig, backup: leftovers.defaultToolBackup, steamRunning: leftovers.steamRunning)
+        try SteamDefaultTool.removeGameEntries(in: leftovers.steamConfig, steamRunning: leftovers.steamRunning)
         report(.removing)
         let kept = try keepGamefixes(leftovers.gamefixes, in: leftovers.keptGamefixes)
         var removed = try remove(

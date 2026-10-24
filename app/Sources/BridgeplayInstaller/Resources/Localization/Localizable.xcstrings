@@ -67,18 +67,18 @@
         }
       }
     },
-    "Apple's Game Porting Toolkit and the WineCX engine. The download is checked against Bridgeplay's signature before anything is installed." : {
+    "Apple's Game Porting Toolkit and Bridgeplay's graphics layers, checked against Bridgeplay's signature. Setup adds the WineCX engine later." : {
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Game Porting Toolkit di Apple e il motore WineCX. Il download viene verificato con la firma di Bridgeplay prima di installare qualsiasi cosa."
+            "value" : "Il Game Porting Toolkit di Apple e i livelli grafici di Bridgeplay, verificati con la firma di Bridgeplay. Più avanti Setup aggiunge il motore WineCX."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apple 的 Game Porting Toolkit 和 WineCX 引擎。安装前会用 Bridgeplay 的签名校验下载内容。"
+            "value" : "Apple 的 Game Porting Toolkit 和 Bridgeplay 的图形层，已用 Bridgeplay 的签名校验。设置稍后会添加 WineCX 引擎。"
           }
         }
       }
@@ -313,6 +313,22 @@
         }
       }
     },
+    "Downloading Apple's graphics" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download della grafica di Apple"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在下载 Apple 的图形组件"
+          }
+        }
+      }
+    },
     "Downloading Bridgeplay" : {
       "localizations" : {
         "it" : {
@@ -325,22 +341,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在下载 Bridgeplay"
-          }
-        }
-      }
-    },
-    "Downloading graphics and engine" : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scaricamento di grafica e motore"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在下载图形组件和引擎"
           }
         }
       }
@@ -815,18 +815,18 @@
         }
       }
     },
-    "Steam, Apple's graphics and the WineCX engine are installed too, since this Mac doesn't have them yet." : {
+    "Steam and Apple's graphics are installed too. Setup adds the WineCX engine later." : {
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vengono installati anche Steam, la grafica di Apple e il motore WineCX, perché questo Mac non li ha ancora."
+            "value" : "Vengono installati anche Steam e la grafica di Apple. Più avanti Setup aggiunge il motore WineCX."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "由于这台 Mac 还没有 Steam、Apple 图形组件和 WineCX 引擎，它们也会一并安装。"
+            "value" : "也会安装 Steam 和 Apple 的图形组件。设置稍后会添加 WineCX 引擎。"
           }
         }
       }

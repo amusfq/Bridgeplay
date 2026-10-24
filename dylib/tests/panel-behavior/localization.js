@@ -19,7 +19,7 @@ for (const form of Object.keys(FORMS)) {
   for (const [language, cases] of [['zh', zhCases], ['it', itCases], ['en', enCases]]) {
     const t = (...labels) => labels[lang[language]];
     for (const globals of cases) {
-      const { render, files, written } = panel(emit, form, globals);
+      const { render, written } = panel(emit, form, globals);
       const nodes = walk(render({ details: details('CX_GRAPHICS_BACKEND=dxmt %command%') }));
       const dropdowns = nodes.filter(n => n.type === 'Dropdown');
       assert.equal(dropdowns[0].props.rgOptions[0].label, t('Automatic', '自动', 'Automatico'));
@@ -33,15 +33,6 @@ for (const form of Object.keys(FORMS)) {
         '允许游戏直接读取控制器（Mac 上推荐，仅在需要 Steam Input 按键映射时关闭）',
         'Lascia che i giochi leggano direttamente i controller (consigliato su Mac, disattiva solo per la rimappatura di Steam Input)'));
       assert(nodes.some(n => n.props.label === t('Disable hidraw', '停用 hidraw', 'Disattiva hidraw')));
-      assert(nodes.some(n => n.props.label === t('Executable', '可执行文件', 'Eseguibile')));
-      assert(nodes.some(n => n.props.children === t('Game default', '游戏默认', 'Predefinito del gioco')));
-      const browse = nodes.find(n => n.type === 'Button');
-      files.push('/g/a.exe');
-      browse.props.onClick();
-      const target = walk(render({ details: details(written.at(-1).opts) }));
-      assert.deepEqual(target.filter(n => n.type === 'Button').map(n => n.props.children),
-        [t('Browse...', '浏览…', 'Sfoglia...'), t('Reset', '重置', 'Ripristina'), t('Browse...', '浏览…', 'Sfoglia...')]);
-      assert(target.some(n => n.props.children === t('Start In', '起始位置', 'Avvia in') + ': /g'));
       raw.props.onChange(true);
       assert.equal(written.at(-1).opts, 'BRIDGEPLAY_RAW_CONTROLLERS=1 CX_GRAPHICS_BACKEND=dxmt %command%');
       const hud = nodes.find(n => n.props.label === t('Metal HUD', 'Metal 性能监视器', 'Metal HUD'));

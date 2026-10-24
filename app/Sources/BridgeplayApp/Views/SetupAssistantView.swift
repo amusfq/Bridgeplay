@@ -188,7 +188,7 @@ struct SetupAssistantView: View {
     @ViewBuilder
     private var graphicsStep: some View {
         StepHeader(step: model.step, title: "Add Apple's game graphics",
-                   detail: "Apple's Game Porting Toolkit includes D3DMetal, which runs DirectX 11 and 12 games on Metal, with MetalFX upscaling. It's free, but only Apple can hand it out, so you download it once with your Apple Account.")
+                   detail: "Apple's Game Porting Toolkit (D3DMetal) runs DirectX 11 and 12 games on Metal. The installer includes it under Apple's non-commercial license, or link your own copy from Apple.")
         SetupCard {
             if let gptk = model.gptk {
                 WizardRow(row: StatusRow(title: String(localized: "Game Porting Toolkit"),
@@ -233,6 +233,15 @@ struct SetupAssistantView: View {
     private var steamStep: some View {
         StepHeader(step: model.step, title: "Sign in to Steam",
                    detail: "Sign in with your account in Steam. Bridgeplay continues on its own once you're in.")
+        // Above the rows, so it is read before the Set Up step patches Steam.
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Bridgeplay adds a library to Steam.app and re-signs Steam on this Mac. Valve doesn't support this, and it may go against Steam's terms. Repair Steam in Status undoes it.")
+            Text("Online games with anti-cheat often won't start and may flag Bridgeplay. Play them at your own risk.")
+        }
+        .font(BP.sans(12))
+        .foregroundStyle(BP.fg3)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 2)
         SetupCard {
             checked(0, StatusRow(title: String(localized: "Steam"),
                       value: model.steamInstalled ? SupportPaths.Steam.app.path(percentEncoded: false)
@@ -243,18 +252,12 @@ struct SetupAssistantView: View {
                       ) { Task { await model.installSteam() } }))
             SetupHairline()
             checked(1, StatusRow(title: String(localized: "Steam account"),
-                      value: model.signedIn ? String(localized: "Signed in.") : String(localized: "Waiting for you to sign in. Bridgeplay never sees your password."),
+                      value: model.signedIn ? String(localized: "Signed in.") : String(localized: "Waiting for you to sign in to Steam. Bridgeplay doesn't read or store your password."),
                       tone: model.signedIn ? .ok : .info,
                       action: model.signedIn || !model.steamInstalled ? nil : StatusAction(label: String(localized: "Open Steam"), isProminent: true) { model.openSteam() }))
             SetupHairline()
             checked(2, trustRow)
         }
-        // Shown before the Set Up step patches Steam.
-        Text("Bridgeplay modifies Steam.app. It adds a library that Steam loads at startup and re-signs Steam on this Mac. Valve doesn't support this, and it may go against Steam's terms. Repair Steam or Remove Everything on the Status page undoes it.")
-            .font(BP.sans(12))
-            .foregroundStyle(BP.fg3)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 2)
     }
 
     // Optional: Continue does not wait for it. No password is asked for.
@@ -339,6 +342,20 @@ struct SetupAssistantView: View {
         }
     }
 
+    // Points people who own CrossOver at it, and the rest at buying it, since that funds Wine.
+    private var crossOverRow: StatusRow {
+        let title = String(localized: "CrossOver")
+        if CrossOverSource.discover().contains(where: \.isUsable) {
+            return StatusRow(title: title, value: String(localized: "Found. Set it up in Status to play on it."), tone: .ok)
+        }
+        return StatusRow(title: title,
+                         value: String(localized: "Own CrossOver? Bridgeplay can run games on it. Buying it funds Wine."),
+                         tone: .neutral,
+                         action: StatusAction(label: String(localized: "Get CrossOver")) {
+                             NSWorkspace.shared.open(URL(string: "https://www.codeweavers.com/crossover")!)
+                         })
+    }
+
     @ViewBuilder
     private var doneStep: some View {
         StepHeader(step: model.step, title: "You're all set",
@@ -357,6 +374,8 @@ struct SetupAssistantView: View {
                       value: String(localized: "The first time a game uses a controller, macOS asks to let Steam use Input Monitoring. Click Allow. If you missed it, turn on Steam in Input Monitoring."),
                       tone: .info,
                       action: StatusAction(label: String(localized: "Open Input Monitoring")) { SystemStatus.openInputMonitoring() }))
+            SetupHairline()
+            checked(4, crossOverRow)
         }
         Text("For every game")
             .font(BP.sans(13, .semibold))

@@ -1,6 +1,7 @@
 import Foundation
 
-/// Apple's Game Porting Toolkit, the WineCX engine and the default configs: the one-click
+/// Apple's Game Porting Toolkit, DXMT, DXVK and the default configs (not WineCX, which the
+/// app downloads from dappermint): the one-click
 /// installer ZIP on the `installer` release, which Install.command inside it puts in place.
 /// The wizard downloads it only when this Mac lacks them, checks it against the same EdDSA
 /// key as the app, then runs that Install.command without the app step and without Terminal.

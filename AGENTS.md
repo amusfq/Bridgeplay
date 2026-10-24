@@ -78,6 +78,10 @@ the dylib into `Steam.app` and installs the signatures, fonts and helpers into
 - **Large changes:** open an issue first. Check closed issues and PRs for duplicate work.
   Changes that belong upstream go to NotProton. Port an upstream PR only after it is merged
   there; until then, wait for the maintainer's version.
+- **Credit:** code taken from someone else keeps its author. Use `git cherry-pick -x` and
+  don't amend or reset the author; a rewrite keeps the original author or adds a
+  `Co-authored-by:` line and names the source commit or PR. New third-party code goes in
+  [NOTICE](NOTICE). See CONTRIBUTING.md.
 - **PR descriptions** are written by the contributor in their own words. Don't generate one.
 - **Comments:** keep them short. Comment where the code is hard to follow, not where it is
   obvious.

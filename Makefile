@@ -143,7 +143,8 @@ bridgecheck:
 	sh dylib/tests/bridgecheck.sh dylib/feats/compat_run.sh
 
 envpasscheck:
-	@if [ ! -f dylib/tests/envpasscheck.sh ]; then $(call SKIP,envpasscheck,dylib/tests/envpasscheck.sh); exit 0; fi; \
+	@if [ ! -f dylib/tests/envpasscheck.sh ]; then \
+		$(call SKIP,envpasscheck,dylib/tests/envpasscheck.sh); exit 0; fi; \
 	sh dylib/tests/envpasscheck.sh dylib/feats/compat_run.sh
 
 prefixnotecheck:
@@ -289,8 +290,14 @@ sigdb-fixtures:
 	@if [ ! -d $(SIGDB_FIXTURES) ] || [ ! -f dylib/tests/anchorcheck.c ]; then \
 		$(call SKIP,sigdb-fixtures,$(SIGDB_FIXTURES)); exit 0; fi; \
 	$(MAKE) -s $(ANCHORCHECK) || exit 1; \
-	fail=0; n=0; \
-	for f in $(SIGDB_FIXTURES)/*.json; do \
+	fail=0; n=0; live=$(OUT_DIR)/sigdb-fixtures-live; mkdir -p $$live || exit 1; \
+	for t in $(SIGDB_FIXTURES)/live/*.json; do \
+		out=$$($(ANCHORCHECK) --rebase "$$t" "$$live/$${t##*/}" 2>&1); rc=$$?; \
+		if [ $$rc -ne 0 ]; then \
+			echo "cannot build $$t against the installed client (rc=$$rc):"; \
+			echo "$$out" | tail -1; exit 1; fi; \
+	done; \
+	for f in $(SIGDB_FIXTURES)/*.json $$live/*.json; do \
 		n=$$((n+1)); \
 		want=$$(awk -v name="$${f##*/}" '$$2 == name { print $$1 }' $(SIGDB_FIXTURES)/EXPECTED); \
 		out=$$($(ANCHORCHECK) "$$f" 2>&1); rc=$$?; \

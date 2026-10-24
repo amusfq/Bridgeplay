@@ -1,10 +1,10 @@
 #!/bin/bash
 # Bridgeplay one-click installer.
 # Downloads the latest Bridgeplay from GitHub, copies Apple's Game Porting Toolkit
-# (D3DMetal), the WineCX engine (no download)
-# and the default configs, installs Steam from Valve's CDN when it is missing, then opens
-# Bridgeplay, whose Setup Assistant does the rest: Rosetta, sign-in, the App Management
-# permission and the Steam setup. Assembled into a zip by scripts/package-installer.sh.
+# (D3DMetal), the DXMT and DXVK archives and the default configs, installs Steam from
+# Valve's CDN when it is missing, then opens Bridgeplay, whose Setup Assistant does the
+# rest: Rosetta, sign-in, the App Management permission, the WineCX engine (downloaded
+# from dappermint/winecx-gptk, see NOTICE) and the Steam setup. Assembled into a zip by scripts/package-installer.sh.
 set -uo pipefail
 
 # Bridgeplay Installer.app runs this script too, after it has installed the app itself:
@@ -123,7 +123,7 @@ if [ ! -d /Applications/Steam.app ]; then
     xattr -dr com.apple.quarantine /Applications/Steam.app 2>/dev/null || true
 fi
 
-say "Menyalin Game Porting Toolkit, engine WineCX dan config (tanpa download)..."
+say "Menyalin Game Porting Toolkit, DXMT, DXVK dan config..."
 if [ "$migrate_later" -eq 1 ]; then
     say "Data Bridgeplay lama ditemukan di folder notproton. File baru ditaruh di sana dulu; Bridgeplay memindahkannya ke folder bridgeplay saat pertama dibuka (tutup Steam dan game dulu)."
 fi
@@ -131,7 +131,8 @@ mkdir -p "$support/gamefixes" "$support/gamefixes-default" "$support/.installer"
     || die "Folder Bridgeplay di Library tidak bisa dibuat."
 rm -rf "$support/gptk" || die "Game Porting Toolkit lama tidak bisa dihapus."
 ditto "$here/gptk" "$support/gptk" || die "Game Porting Toolkit gagal disalin."
-# Bridgeplay reuses any cached file whose hash matches its pin, so nothing is downloaded.
+# Bridgeplay reuses any cached file whose hash matches its pin, so DXMT and DXVK are not
+# downloaded again. The WineCX runtime is not in the zip; the app downloads it.
 ditto "$here/cache" "$caches" || die "File engine gagal disalin."
 
 # Per-game confs are Bridgeplay's shipped defaults (gamefixes/ in the repository). They go

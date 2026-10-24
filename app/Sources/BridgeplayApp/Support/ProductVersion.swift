@@ -64,6 +64,8 @@ enum AboutPanel {
              "https://github.com/NotProtonNot/NotProton"),
             (String(localized: "Runs on CodeWeavers' Wine and Apple's Game Porting Toolkit."), nil),
             (String(localized: "Support Wine: buy CrossOver"), "https://www.codeweavers.com/crossover"),
+            (String(localized: "Thanks to NotProton's contributors"),
+             "https://github.com/NotProtonNot/NotProton/graphs/contributors"),
             (String(localized: "Thanks to everyone who contributed on GitHub"),
              "https://github.com/raymondchins/Bridgeplay/graphs/contributors"),
         ]

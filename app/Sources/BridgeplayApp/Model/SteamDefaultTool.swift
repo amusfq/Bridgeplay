@@ -86,6 +86,46 @@ enum SteamDefaultTool {
         return true
     }
 
+    // Removes the per-game entries under CompatToolMapping whose tool is one of Bridgeplay's
+    // (the "0" default is restore()'s). nil when there is nothing to remove.
+    static func removingOurGameEntries(_ text: String) -> String? {
+        var lines = text.components(separatedBy: "\n")
+        guard let mapping = keyLine(lines, "CompatToolMapping", from: 0),
+              let open = openBrace(lines, after: mapping), let close = closeBrace(lines, open: open)
+        else { return nil }
+        let depth = indent(lines[mapping]) + 1
+        var ranges: [ClosedRange<Int>] = []
+        var index = open + 1
+        while index < close {
+            guard indent(lines[index]) == depth, key(lines[index]) != nil,
+                  let entryOpen = openBrace(lines, after: index), let entryClose = closeBrace(lines, open: entryOpen)
+            else { index += 1; continue }
+            if key(lines[index]) != "0", lines[entryOpen + 1 ..< entryClose].contains(where: {
+                guard let (field, value, _) = BrandMigration.keyValue($0) else { return false }
+                return field.lowercased() == "name" && ToolName.isOurs(value)
+            }) { ranges.append(index ... entryClose) }
+            index = entryClose + 1
+        }
+        guard !ranges.isEmpty else { return nil }
+        for range in ranges.reversed() { lines.removeSubrange(range) }
+        return lines.joined(separator: "\n")
+    }
+
+    // Removes Bridgeplay's per-game tool choices from config.vdf, so no game is left naming a
+    // deleted tool. Refused while Steam runs. Returns whether it wrote.
+    @discardableResult
+    static func removeGameEntries(
+        in file: URL = config,
+        steamRunning: () -> Bool = { SteamBundle.isRunningForThisUser }
+    ) throws -> Bool {
+        guard let text = try? String(contentsOf: file, encoding: .utf8),
+              let result = removingOurGameEntries(text)
+        else { return false }
+        guard !steamRunning() else { throw SteamRunning() }
+        try WriteRefused.catching(file) { try result.write(to: file, atomically: true, encoding: .utf8) }
+        return true
+    }
+
     static let step = "Set Steam's default compatibility tool"
 
     // Replaces the "0" entry under CompatToolMapping, or adds it (and CompatToolMapping) when

@@ -89,7 +89,7 @@ struct GuideView: View {
                 SteamRow(.check(String(localized: "Metal HUD"), true),
                          note: String(localized: "Apple's performance overlay: frame rate, frame time and GPU use."))
                 SteamRow(.check("DLSS", true),
-                         note: String(localized: "Lets the game offer NVIDIA DLSS. Apple's MetalFX does the upscaling, and DLSS Frame Generation runs on MetalFX too. Turn DLSS on in the game's own settings as well."))
+                         note: String(localized: "Lets the game offer NVIDIA DLSS. Apple's MetalFX does the upscaling, and DLSS Frame Generation is experimental and off by default. Turn DLSS on in the game's own settings as well."))
                 SteamRow(.check(String(localized: "Advertise AVX2 to Rosetta"), true),
                          note: String(localized: "Tells the game the processor supports AVX2, which some recent games need to start."))
                 SteamRow(.check("MSync", true),

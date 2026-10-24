@@ -1548,18 +1548,18 @@
         }
       }
     },
-    "Apple's Game Porting Toolkit includes D3DMetal, which runs DirectX 11 and 12 games on Metal, with MetalFX upscaling. It's free, but only Apple can hand it out, so you download it once with your Apple Account." : {
+    "Apple's Game Porting Toolkit (D3DMetal) runs DirectX 11 and 12 games on Metal. The installer includes it under Apple's non-commercial license, or link your own copy from Apple." : {
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Il Game Porting Toolkit di Apple include D3DMetal, che esegue i giochi DirectX 11 e 12 su Metal, con l'upscaling MetalFX. È gratuito, ma solo Apple può distribuirlo: lo scarichi una volta con il tuo Apple Account."
+            "value" : "Il Game Porting Toolkit di Apple (D3DMetal) esegue i giochi DirectX 11 e 12 su Metal. L'installer lo include con la licenza non commerciale di Apple, oppure collega una tua copia da Apple."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apple 的 Game Porting Toolkit 包含 D3DMetal，可通过 Metal 运行 DirectX 11 和 12 游戏，并支持 MetalFX 放大。它免费提供，但只能由 Apple 分发，因此需要用你的 Apple 账户下载一次。"
+            "value" : "Apple 的 Game Porting Toolkit（D3DMetal）可通过 Metal 运行 DirectX 11 和 12 游戏。安装器按 Apple 的非商业许可附带它，你也可以链接自己从 Apple 下载的副本。"
           }
         }
       }
@@ -2047,6 +2047,22 @@
         }
       }
     },
+    "Bridgeplay adds a library to Steam.app and re-signs Steam on this Mac. Valve doesn't support this, and it may go against Steam's terms. Repair Steam in Status undoes it." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bridgeplay aggiunge una libreria a Steam.app e ri-firma Steam su questo Mac. Valve non lo supporta e potrebbe violare i termini di Steam. “Ripara Steam” in Stato lo annulla."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bridgeplay 会向 Steam.app 添加一个库，并在这台 Mac 上为 Steam 重新签名。Valve 不支持这样做，也可能违反 Steam 的条款。在“状态”中修复 Steam 即可撤销。"
+          }
+        }
+      }
+    },
     "Bridgeplay adds itself to Steam, sets up the WineCX engine and makes it Steam's default. Steam closes for a moment." : {
       "localizations" : {
         "it" : {
@@ -2347,22 +2363,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bridgeplay 就在 Steam 中"
-          }
-        }
-      }
-    },
-    "Bridgeplay modifies Steam.app. It adds a library that Steam loads at startup and re-signs Steam on this Mac. Valve doesn't support this, and it may go against Steam's terms. Repair Steam or Remove Everything on the Status page undoes it." : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bridgeplay modifica Steam.app. Aggiunge una libreria che Steam carica all'avvio e rifirma Steam su questo Mac. Valve non lo supporta e potrebbe andare contro i termini di Steam. Ripara Steam o Rimuovi tutto nella pagina Stato annullano la modifica."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bridgeplay 会修改 Steam.app：添加一个 Steam 启动时加载的库，并在这台 Mac 上重新签名 Steam。Valve 不支持这种做法，这可能违反 Steam 的条款。在状态页面使用“修复 Steam”或“全部移除”即可撤销。"
           }
         }
       }
@@ -2831,22 +2831,6 @@
         }
       }
     },
-    "Clone CrossOver" : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copia di CrossOver"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "复制 CrossOver"
-          }
-        }
-      }
-    },
     "Close" : {
       "localizations" : {
         "it" : {
@@ -3211,6 +3195,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "复制 %@ 并设置其兼容工具。"
+          }
+        }
+      }
+    },
+    "Copy CrossOver's engine" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copia del motore di CrossOver"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制 CrossOver 的引擎"
           }
         }
       }
@@ -4402,6 +4402,22 @@
         }
       }
     },
+    "Found. Set it up in Status to play on it." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trovato. Configuralo in Stato per giocare con esso."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已找到。在“状态”中设置后即可用它玩游戏。"
+          }
+        }
+      }
+    },
     "Frame Generation (Experimental. Adds input lag)" : {
       "localizations" : {
         "it" : {
@@ -4542,6 +4558,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "常规"
+          }
+        }
+      }
+    },
+    "Get CrossOver" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ottieni CrossOver"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "获取 CrossOver"
           }
         }
       }
@@ -5282,18 +5314,18 @@
         }
       }
     },
-    "Lets the game offer NVIDIA DLSS. Apple's MetalFX does the upscaling, and DLSS Frame Generation runs on MetalFX too. Turn DLSS on in the game's own settings as well." : {
+    "Lets the game offer NVIDIA DLSS. Apple's MetalFX does the upscaling, and DLSS Frame Generation is experimental and off by default. Turn DLSS on in the game's own settings as well." : {
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Permette al gioco di offrire NVIDIA DLSS. L'upscaling è fatto da MetalFX di Apple, e anche la Frame Generation DLSS gira su MetalFX. Attiva DLSS anche nelle impostazioni del gioco."
+            "value" : "Permette al gioco di offrire NVIDIA DLSS. L'upscaling è fatto da MetalFX di Apple, e la Frame Generation DLSS è sperimentale e disattivata di default. Attiva DLSS anche nelle impostazioni del gioco."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "让游戏提供 NVIDIA DLSS 选项。放大由 Apple 的 MetalFX 完成，DLSS 帧生成也基于 MetalFX 运行。同时请在游戏自己的设置中开启 DLSS。"
+            "value" : "让游戏提供 NVIDIA DLSS 选项。放大由 Apple 的 MetalFX 完成，DLSS 帧生成为实验性功能，默认关闭。同时请在游戏自己的设置中开启 DLSS。"
           }
         }
       }
@@ -6034,6 +6066,22 @@
         }
       }
     },
+    "Online games with anti-cheat often won't start and may flag Bridgeplay. Play them at your own risk." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I giochi online con anti-cheat spesso non si avviano e possono segnalare Bridgeplay. Giocaci a tuo rischio."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "带反作弊的在线游戏常常无法启动，也可能把 Bridgeplay 标记出来。请自行承担风险。"
+          }
+        }
+      }
+    },
     "Only on native Mac games, next to Metal HUD and Frame Generation. Raw HID suits Unity, SDL and Unreal games, GameController uses Apple's framework, and Off leaves controllers alone." : {
       "localizations" : {
         "it" : {
@@ -6238,6 +6286,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "游戏叠加层适配组件"
+          }
+        }
+      }
+    },
+    "Own CrossOver? Bridgeplay can run games on it. Buying it funds Wine." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hai CrossOver? Bridgeplay può eseguire i giochi con esso. Acquistarlo finanzia Wine."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已有 CrossOver？Bridgeplay 可以用它运行游戏。购买它是在资助 Wine。"
           }
         }
       }
@@ -7362,18 +7426,18 @@
         }
       }
     },
-    "Reports are posted publicly in Bridgeplay's GitHub Discussions and counted on the compatibility list. Each one has the game, how it ran, anything you write about it, your Mac's model, chip, GPU cores, memory and displays, whether it was on battery, in Low Power Mode or running hot, the macOS and Bridgeplay versions, the engine, backend and High Resolution setting, and the game's logs. Your home folder, user and computer names, Steam account name, Steam ID and email addresses are removed from the logs first. You don't need a GitHub account." : {
+    "Reports are posted publicly in Bridgeplay's GitHub Discussions and counted on the compatibility list. Each one has the game, how it ran, anything you write about it, your Mac's model, chip, GPU cores, memory and displays, whether it was on battery, in Low Power Mode or running hot, the macOS and Bridgeplay versions, the engine, backend and High Resolution setting, and the game's logs. Your home folder, user and computer names, Steam account name, Steam ID and email addresses are removed from the logs first. You don't need a GitHub account. It also sends a random install ID, used only for rate limits. The server sees your IP, like any website." : {
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "I report vengono pubblicati nelle GitHub Discussions di Bridgeplay e contati nell'elenco di compatibilità. Ognuno contiene il gioco, come è andato, quello che scrivi al riguardo, modello, chip, core GPU, memoria e schermi del Mac, se era a batteria, in modalità Risparmio energia o surriscaldato, le versioni di macOS e Bridgeplay, motore, backend e impostazione Alta risoluzione, e i log del gioco. Prima dell'invio vengono rimossi dai log la cartella Inizio, i nomi utente e computer, il nome dell'account Steam, lo Steam ID e gli indirizzi email. Non serve un account GitHub."
+            "value" : "I report vengono pubblicati nelle GitHub Discussions di Bridgeplay e contati nell'elenco di compatibilità. Ognuno contiene il gioco, come è andato, quello che scrivi al riguardo, modello, chip, core GPU, memoria e schermi del Mac, se era a batteria, in modalità Risparmio energia o surriscaldato, le versioni di macOS e Bridgeplay, motore, backend e impostazione Alta risoluzione, e i log del gioco. Prima dell'invio vengono rimossi dai log la cartella Inizio, i nomi utente e computer, il nome dell'account Steam, lo Steam ID e gli indirizzi email. Non serve un account GitHub. Invia anche un ID di installazione casuale, usato solo per i limiti di frequenza. Il server vede il tuo IP, come qualsiasi sito web."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "报告会公开发布到 Bridgeplay 的 GitHub Discussions，并计入兼容性列表。每份报告包含游戏、运行情况、你对此写下的说明、Mac 的型号、芯片、GPU 核心数、内存和显示器，是否使用电池供电、处于低电量模式或过热，macOS 和 Bridgeplay 版本，引擎、后端和高分辨率设置，以及游戏日志。发送前会从日志中移除你的个人文件夹、用户名和电脑名称、Steam 账户名称、Steam ID 和电子邮件地址。不需要 GitHub 账户。"
+            "value" : "报告会公开发布到 Bridgeplay 的 GitHub Discussions，并计入兼容性列表。每份报告包含游戏、运行情况、你对此写下的说明、Mac 的型号、芯片、GPU 核心数、内存和显示器，是否使用电池供电、处于低电量模式或过热，macOS 和 Bridgeplay 版本，引擎、后端和高分辨率设置，以及游戏日志。发送前会从日志中移除你的个人文件夹、用户名和电脑名称、Steam 账户名称、Steam ID 和电子邮件地址。不需要 GitHub 账户。它还会发送一个随机的安装 ID，仅用于频率限制。服务器会像任何网站一样看到你的 IP。"
           }
         }
       }
@@ -8485,18 +8549,18 @@
         }
       }
     },
-    "Steam client updates may break Bridgeplay. If you don't want to wait for Bridgeplay to be updated to be compatible with future Steam versions at the cost of not getting updates to the Steam client, you can stop the Steam client from updating itself." : {
+    "Steam client updates may break Bridgeplay. If you don't want to wait for Bridgeplay to be updated to be compatible with future Steam versions at the cost of not getting updates to the Steam client, you can stop the Steam client from updating itself. You also miss Steam's security fixes." : {
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gli aggiornamenti del client Steam potrebbero rendere Bridgeplay inutilizzabile. Se non vuoi aspettare che Bridgeplay venga aggiornato per le future versioni di Steam, puoi impedire al client Steam di aggiornarsi, rinunciando però ai suoi aggiornamenti."
+            "value" : "Gli aggiornamenti del client Steam potrebbero rendere Bridgeplay inutilizzabile. Se non vuoi aspettare che Bridgeplay venga aggiornato per le future versioni di Steam, puoi impedire al client Steam di aggiornarsi, rinunciando però ai suoi aggiornamenti. Non ricevi nemmeno le correzioni di sicurezza di Steam."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Steam 客户端更新可能导致 Bridgeplay 无法使用。你可以阻止 Steam 自动更新，避免等待 Bridgeplay 适配新版本，但这也意味着无法及时获得 Steam 客户端的功能改进和安全更新。"
+            "value" : "Steam 客户端更新可能导致 Bridgeplay 无法使用。你可以阻止 Steam 自动更新，避免等待 Bridgeplay 适配新版本，但这也意味着无法及时获得 Steam 客户端的功能改进和安全更新。你也无法获得 Steam 的安全修复。"
           }
         }
       }
@@ -8837,6 +8901,22 @@
         }
       }
     },
+    "Steam updates are blocked, security fixes included." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gli aggiornamenti di Steam sono bloccati, comprese le correzioni di sicurezza."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steam 更新已被阻止，包括安全修复。"
+          }
+        }
+      }
+    },
     "Steam was installed by another account on this Mac. Only that account can modify it. Log in to macOS with that account to reinstall Bridgeplay." : {
       "localizations" : {
         "it" : {
@@ -9093,6 +9173,22 @@
         }
       }
     },
+    "Thanks to NotProton's contributors" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grazie a chi ha contribuito a NotProton"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "感谢 NotProton 的所有贡献者"
+          }
+        }
+      }
+    },
     "Thanks to everyone who contributed on GitHub" : {
       "localizations" : {
         "it" : {
@@ -9329,22 +9425,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ ntdll 的可选头为 %@，预期为 %@。"
-          }
-        }
-      }
-    },
-    "The Steam client will not update itself." : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Il client Steam non si aggiornerà da solo."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Steam 客户端将不会自动更新。"
           }
         }
       }
@@ -10293,18 +10373,18 @@
         }
       }
     },
-    "Waiting for you to sign in. Bridgeplay never sees your password." : {
+    "Waiting for you to sign in to Steam. Bridgeplay doesn't read or store your password." : {
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "In attesa che tu acceda. Bridgeplay non vede mai la tua password."
+            "value" : "In attesa del tuo accesso a Steam. Bridgeplay non legge né salva la tua password."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "正在等待你登录。Bridgeplay 不会看到你的密码。"
+            "value" : "正在等你登录 Steam。Bridgeplay 不会读取或保存你的密码。"
           }
         }
       }

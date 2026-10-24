@@ -148,7 +148,7 @@ struct PlayReportConsent: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Share how your games run?")
                 .font(BP.sans(17, .semibold))
-            Text("Reports are posted publicly in Bridgeplay's GitHub Discussions and counted on the compatibility list. Each one has the game, how it ran, anything you write about it, your Mac's model, chip, GPU cores, memory and displays, whether it was on battery, in Low Power Mode or running hot, the macOS and Bridgeplay versions, the engine, backend and High Resolution setting, and the game's logs. Your home folder, user and computer names, Steam account name, Steam ID and email addresses are removed from the logs first. You don't need a GitHub account.")
+            Text("Reports are posted publicly in Bridgeplay's GitHub Discussions and counted on the compatibility list. Each one has the game, how it ran, anything you write about it, your Mac's model, chip, GPU cores, memory and displays, whether it was on battery, in Low Power Mode or running hot, the macOS and Bridgeplay versions, the engine, backend and High Resolution setting, and the game's logs. Your home folder, user and computer names, Steam account name, Steam ID and email addresses are removed from the logs first. You don't need a GitHub account. It also sends a random install ID, used only for rate limits. The server sees your IP, like any website.")
                 .foregroundStyle(BP.fg2)
                 .fixedSize(horizontal: false, vertical: true)
             if reports.consentRequest != .autoShare {

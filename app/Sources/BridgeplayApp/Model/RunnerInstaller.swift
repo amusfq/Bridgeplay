@@ -5,7 +5,7 @@ import Foundation
 
 enum RunnerInstaller {
 
-    static let step = String(localized: "Clone CrossOver")
+    static let step = String(localized: "Copy CrossOver's engine")
 
     static func clone(
         from install: CrossOverInstall,

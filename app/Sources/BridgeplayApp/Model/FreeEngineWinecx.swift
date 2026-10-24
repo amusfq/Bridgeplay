@@ -175,10 +175,10 @@ enum FreeEngineWinecx {
         nvidia: [
             WinecxBundledFile(resource: "crypt32-winecx-11.17", ext: "dll",
                               path: "lib/wine/x86_64-windows/crypt32.dll",
-                              sha256: "19330827fc085603c2a73b859b801980f494a942ae470398634fbb6e1d62ada9"),
+                              sha256: "27b485cc2a6bf651d8d72173e5d40dbc914666d3f8e8f6a4031a91c5ff22ebbf"),
             WinecxBundledFile(resource: "wintrust-winecx-11.17", ext: "dll",
                               path: "lib/wine/x86_64-windows/wintrust.dll",
-                              sha256: "6ae3a8723bae11e5ff9ad6e23d1f1325740b1892d01b78abdeb1b77ac8bb6da8"),
+                              sha256: "256f3b7106cb8f7f390e1551f209bfb72ccf43744d6d583e5664e44d7602bfee"),
             // nvapi-shim/: a native nvapi64 that reports a newer NVIDIA driver than
             // Apple's 561.09 and passes everything else to Apple's nvapi.dll.
             WinecxBundledFile(resource: "nvapi64-shim", ext: "dll",

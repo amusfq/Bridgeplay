@@ -171,7 +171,7 @@ struct StatusView: View {
     @State private var gameDefaultsError: String?
 
     private static let updateBlockPrompt =
-        String(localized: "Steam client updates may break Bridgeplay. If you don't want to wait for Bridgeplay to be updated to be compatible with future Steam versions at the cost of not getting updates to the Steam client, you can stop the Steam client from updating itself.")
+        String(localized: "Steam client updates may break Bridgeplay. If you don't want to wait for Bridgeplay to be updated to be compatible with future Steam versions at the cost of not getting updates to the Steam client, you can stop the Steam client from updating itself. You also miss Steam's security fixes.")
 
     var body: some View {
         Group {
@@ -625,8 +625,9 @@ struct StatusView: View {
         StatusRow(
             title: String(localized: "Block Steam client updates"),
             value: blocked
-                ? String(localized: "The Steam client will not update itself.")
+                ? String(localized: "Steam updates are blocked, security fixes included.")
                 : String(localized: "A Steam client update may break Bridgeplay."),
+            tone: blocked ? .warning : nil,
             toggle: blockUpdates
         )
         .disabled(!status.isIdle)

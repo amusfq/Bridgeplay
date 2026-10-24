@@ -406,7 +406,9 @@ static int run_detached(char *const argv[]) {
 #define REBUILD_SCRIPT \
     "log=$1; shift; \"$0\" --rebuild-prefix \"$@\" >> \"$log\" 2>&1 < /dev/null &"
 
-static int start_rebuild(uintptr_t request, uintptr_t response, int keep_backup) {
+// Any SteamUI page can call these routes, so a route never discards the original prefix:
+// saves outside drive_c/users (registry, game folder) would go with it.
+static int start_rebuild(uintptr_t request, uintptr_t response) {
     uint32_t appid = request_appid(request);
     np_prefix_state_t st;
     if (!read_state(appid, &st)) return RESULT_FAIL;
@@ -437,8 +439,7 @@ static int start_rebuild(uintptr_t request, uintptr_t response, int keep_backup)
             && ftruncate(fd, 0) == 0 && write(fd, "setup\n0\n", 8) == 8;
         if (fd >= 0) close(fd);
         char *argv[] = { "/bin/sh", "-c", REBUILD_SCRIPT, st.app, log, st.compatdata,
-                         st.tool, st.tool_build, st.tool_flavor,
-                         keep_backup ? "keep-backup" : "discard-backup", NULL };
+                         st.tool, st.tool_build, st.tool_flavor, "keep-backup", NULL };
         if (!recorded) {
             refused = "spawn";
         } else if (!run_detached(argv)) {
@@ -450,8 +451,7 @@ static int start_rebuild(uintptr_t request, uintptr_t response, int keep_backup)
     if (refused)
         NP_WARN("compatsvc: app %u was not rebuilt (%s)", appid, refused);
     else
-        NP_LOG("compatsvc: rebuilding app %u for %s, %s the original", appid, st.tool,
-               keep_backup ? "keeping" : "discarding");
+        NP_LOG("compatsvc: rebuilding app %u for %s, keeping the original", appid, st.tool);
 
     char json[64];
     snprintf(json, sizeof json, refused ? "{\"error\":\"%s\"}" : "{\"started\":true}",
@@ -460,11 +460,11 @@ static int start_rebuild(uintptr_t request, uintptr_t response, int keep_backup)
 }
 
 static int rebuild_prefix(uintptr_t request, uintptr_t response) {
-    return start_rebuild(request, response, 0);
+    return start_rebuild(request, response);
 }
 
 static int backup_and_rebuild_prefix(uintptr_t request, uintptr_t response) {
-    return start_rebuild(request, response, 1);
+    return start_rebuild(request, response);
 }
 
 static int open_prefix_log(uintptr_t request, uintptr_t response) {

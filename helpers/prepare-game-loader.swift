@@ -166,7 +166,13 @@ func prepare(_ target: URL, _ info: URL) throws {
     var arguments = ["--force", "--sign", "-", "--identifier", identity]
     if hardened { arguments += ["--options", "runtime"] }
     if !entitlements.isEmpty {
-        _ = try PropertyListSerialization.propertyList(from: entitlements, format: nil)
+        let parsed = try PropertyListSerialization.propertyList(from: entitlements, format: nil)
+        // An ad hoc signature can't carry com.apple.developer.* entitlements (CrossOver 27's
+        // cross-architecture-support): macOS kills the re-signed loader at launch, so the run
+        // script keeps the original signed one instead.
+        if let restricted = (parsed as? [String: Any])?.keys.first(where: { $0.hasPrefix("com.apple.developer.") }) {
+            throw PrepareError.invalid("\(restricted) only works under the original signature")
+        }
         let file = temporary.appendingPathComponent("entitlements.plist")
         try entitlements.write(to: file)
         arguments += ["--entitlements", file.path]

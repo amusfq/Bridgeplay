@@ -1,6 +1,7 @@
 #!/bin/sh
 # Build the small native bootstrap without Wine, GPTK or the product payload, as a ZIP with
-# the app and READ ME FIRST.html, which shows how to get past Gatekeeper. A downloaded DMG is
+# the app, READ ME FIRST.html (how to get past Gatekeeper) and the licence files: LICENSE,
+# NOTICE and OFL-Geist.txt for the Geist font the page embeds. A downloaded DMG is
 # checked by Gatekeeper on its own, then the app in it again: two Open Anyway prompts. A ZIP
 # is not, so the app is the only one.
 set -eu
@@ -90,6 +91,7 @@ def font(match):
     return "data:font/woff2;base64," + base64.b64encode((fonts / (match.group(1) + ".woff2")).read_bytes()).decode()
 out.write_text(re.sub(r"\{\{font:(\w+)\}\}", font, page.read_text()))
 PYTHON
+cp LICENSE NOTICE app/Sources/BridgeplayUI/Resources/Fonts/OFL-Geist.txt "$package/"
 rm -f "$zip"
 (cd "$package" && ditto -c -k --norsrc --noextattr . "$zip")
 size=$(stat -f '%z' "$zip")

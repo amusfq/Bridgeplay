@@ -1,9 +1,14 @@
 # Native installer
 
-The native installer is an optional small bootstrap for a new installation or an app
-update. It downloads the existing Bridgeplay release, verifies its Sparkle EdDSA signature
-before extraction, and installs the app in `/Applications/Bridgeplay.app`. It does not
-bundle Wine, GPTK, or the product's payload. Discussion: [issue #17](https://github.com/raymondchins/Bridgeplay/issues/17).
+`Bridgeplay Installer.app` (shipped as `Bridgeplay-Setup.zip` on every app release) installs
+or updates `/Applications/Bridgeplay.app`. It downloads the app from the release named in
+Bridgeplay's Sparkle feed and checks its EdDSA signature before extracting it. On a Mac
+without Game Porting Toolkit or Steam it also downloads the one-click installer zip
+(`Bridgeplay-Installer.zip` on the `installer` release, signature in the `.sig` beside it),
+checks it against the same key, and runs its `Install.command` without the app step and
+without Terminal. That zip carries GPTK, DXMT, DXVK and the default configs, not Wine: the app
+downloads the WineCX runtime from dappermint/winecx-gptk during its Setup Assistant (see
+[NOTICE](../NOTICE)). Discussion: [issue #17](https://github.com/raymondchins/Bridgeplay/issues/17).
 
 ## Build
 
@@ -12,20 +17,19 @@ make native-installer
 ```
 
 This builds the `BridgeplayInstaller` SwiftPM product for arm64, copies its two resource
-bundles and font license files, compiles installer translations, renders the existing
-Bridgeplay mark as the icon, signs the app and packages `out/Bridgeplay-Setup.zip`, a ZIP with only the app in it (a downloaded DMG makes Gatekeeper ask twice).
-The default is an ad hoc local build. `BRIDGEPLAY_SIGN_IDENTITY` selects the maintainer's
-signing identity. The default size budget is 5 MiB; a larger artifact fails packaging.
-`BRIDGEPLAY_INSTALLER_MAX_BYTES` can override the budget for a deliberate size review.
+bundles, compiles installer translations, renders the Bridgeplay mark as the icon, signs the
+app and packages `out/Bridgeplay-Setup.zip`: the app, `READ ME FIRST.html` (Gatekeeper steps,
+with the Geist font inline), `LICENSE`, `NOTICE` and `OFL-Geist.txt`. A ZIP, not a DMG,
+because a downloaded DMG makes Gatekeeper ask twice. The default is an ad hoc local build;
+`BRIDGEPLAY_SIGN_IDENTITY` selects the maintainer's signing identity. Packaging fails above
+5 MiB unless `BRIDGEPLAY_INSTALLER_MAX_BYTES` raises the budget for a deliberate size review.
 
-CI also packages the DMG as a build artifact and runs `native-installercheck`.
-The maintainer release script attaches the DMG to each app release after generating the
-product appcast, so it never becomes a Sparkle update for the product. Its dry run builds
-an ad hoc DMG without reading signing identities from the keychain.
-The bootstrap can be built separately from the full app/Wine toolchain. Follow
-[BUILD-LOCAL.md](BUILD-LOCAL.md) for the product build, which still requires Xcode.
-Creating an ad hoc DMG does not provide Developer ID signing or notarization. Test a
-quarantined browser download before claiming a frictionless public installation.
+CI packages the ZIP as a build artifact and runs `native-installercheck`.
+`scripts/release-local.sh` attaches it to each app release after generating the appcast, so
+it never becomes a Sparkle update for the product; its dry run builds an ad hoc copy. The
+bootstrap builds without the Wine toolchain; the product build is in
+[BUILD-LOCAL.md](BUILD-LOCAL.md). An ad hoc build has no Developer ID signature or
+notarization.
 
 ## Behavior
 
@@ -44,17 +48,16 @@ rotated by rename before replacement. Retired copies owned by another account or
 read-only directories stay intact as `.Bridgeplay.app.previous-<UUID>` siblings; an
 administrator can remove them in Finder. They do not block subsequent updates.
 
-Prefixes, saves, Steam libraries, support folders and user configuration are not rewritten
-by the bootstrap. Opening the installed app continues its existing Setup Assistant or
-Status/update flow. Engine/graphics downloads and Steam setup remain the app's responsibility;
-the existing Apple toolkit download/import path is preserved. This DMG does not replace the
-existing bundled ZIP installer or alter Sparkle's update feed.
+Prefixes, saves and Steam libraries are never touched. The components step writes only what
+`Install.command` writes (`gptk/`, `gamefixes-default/`, the cached DXMT/DXVK archives, and
+`default.conf` unless the user edited it; see [installer/README.md](../installer/README.md)).
+Opening the installed app continues its Setup Assistant, which downloads the WineCX engine
+and sets up Steam. Neither installer changes Sparkle's update feed.
 
-On Finish, users may open Bridgeplay and eject/move the source DMG to Trash. Cleanup is
-available only when the exact source image is identified from `hdiutil` metadata. A copied
-helper outside the mounted volume waits for the installer to exit, rechecks image identity,
-ejects and uses macOS Trash. Cleanup failures preserve the image and show a message. No
-permanent deletion is used for the downloaded DMG.
+On Finish, users may open Bridgeplay. When the installer was started from a mounted disk
+image that `hdiutil` identifies exactly, it also offers to eject the image and move it to
+Trash; a helper outside the volume does that after the installer exits. Failures keep the
+image and show a message. Nothing is deleted permanently.
 
 ## Verification
 

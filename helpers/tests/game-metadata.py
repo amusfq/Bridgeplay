@@ -53,6 +53,20 @@ with tempfile.TemporaryDirectory(prefix="np-game-metadata-") as folder:
     subprocess.run(["codesign", "-s", "-", "--options", "runtime", str(hardened)], check=True)
     subprocess.run([str(tool), str(hardened), str(info)], check=True)
     assert "runtime" in flags(hardened), "a hardened loader lost the hardened runtime"
+    # An ad hoc re-sign can't keep a com.apple.developer.* entitlement (macOS kills it at launch)
+    (root / "restricted").mkdir()
+    restricted = root / "restricted" / "wine"
+    subprocess.run(["clang", str(c), "-Wl,-sectcreate,__TEXT,__info_plist," + str(embedded),
+                    "-o", str(restricted)], check=True)
+    ents = root / "restricted.plist"
+    ents.write_bytes(plistlib.dumps({"com.apple.developer.cross-architecture-support": True,
+                                     "com.apple.security.cs.disable-library-validation": True}))
+    subprocess.run(["codesign", "-s", "-", "--options", "runtime", "--entitlements", str(ents),
+                    str(restricted)], check=True)
+    untouched = restricted.read_bytes()
+    result = subprocess.run([str(tool), str(restricted), str(info)], capture_output=True)
+    assert result.returncode != 0, "a loader with a restricted entitlement was re-signed"
+    assert restricted.read_bytes() == untouched, "a refused loader was modified"
     blob = wine.read_bytes()
     assert b"com.notproton.launcher.999" in blob and b"LSSupportsGameMode" in blob
     subprocess.run([str(tool), str(wine), str(info)], check=True)
