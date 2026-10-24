@@ -117,6 +117,11 @@ cicheck:
 	@if [ ! -f scripts/tests/cicheck.sh ]; then $(call SKIP,cicheck,scripts/tests/cicheck.sh); exit 0; fi; \
 	sh scripts/tests/cicheck.sh
 
+# Validate batch exit statuses without starting games.
+.PHONY: np-test-batch-check
+np-test-batch-check:
+	@sh scripts/tests/np-test-batch.sh
+
 .PHONY: seedcheck
 seedcheck:
 	@if [ ! -f dylib/tests/seedcheck.sh ]; then $(call SKIP,seedcheck,dylib/tests/seedcheck.sh); exit 0; fi; \
@@ -589,97 +594,7 @@ $(APPINFO): helpers/appinfo.swift
 	swiftc -O -target $(ARCH)-apple-macos$(MIN_VER) -o $@ $<
 	@echo "==> Built $@"
 
-GAME_HOST := $(OUT_DIR)/game-host.dylib
-GAME_METADATA := $(OUT_DIR)/prepare-game-loader
-
-$(GAME_HOST): helpers/game-host.c
-	@mkdir -p $(OUT_DIR)
-	$(CC) -dynamiclib -arch arm64 -arch x86_64 -mmacosx-version-min=$(MIN_VER) -O2 -Wall -Wextra $< -o $@
-	codesign -f -s - --identifier com.notproton.game-host $@
-
-$(GAME_METADATA): helpers/prepare-game-loader.swift
-	@mkdir -p $(OUT_DIR)
-	swiftc -O -target $(ARCH)-apple-macos$(MIN_VER) $< -o $@
-	codesign -f -s - --identifier com.notproton.game-metadata $@
-
-.PHONY: game-host-check
-game-host-check: $(GAME_HOST) $(GAME_METADATA)
-	python3 helpers/tests/game-host.py
-	python3 helpers/tests/game-metadata.py $(GAME_METADATA)
-
-DUALSENSE_SRC := controllers/dualsense
-DUALSENSE_OUT := $(OUT_DIR)/controllers/dualsense
-DUALSENSE_RUNTIME := $(DUALSENSE_OUT)/bridge.dylib $(DUALSENSE_OUT)/broker $(DUALSENSE_OUT)/launch
-DUALSENSE_HEADERS := $(wildcard $(DUALSENSE_SRC)/*.h)
-
-$(DUALSENSE_OUT)/bridge.dylib: $(DUALSENSE_SRC)/bridge.m $(DUALSENSE_SRC)/AudioFacade.m $(DUALSENSE_HEADERS)
-	@mkdir -p $(DUALSENSE_OUT)
-	$(CC) -dynamiclib -arch arm64 -arch x86_64 -mmacosx-version-min=$(MIN_VER) -O2 -Wall $(filter %.m,$^) -framework Foundation -framework IOKit -framework CoreAudio -framework AudioUnit -lz -o $@
-	codesign -f -s - --identifier com.notproton.dualsense.bridge $@
-
-$(DUALSENSE_OUT)/broker: $(DUALSENSE_SRC)/broker.m $(DUALSENSE_SRC)/PCMTransport.m $(DUALSENSE_HEADERS)
-	@mkdir -p $(DUALSENSE_OUT)
-	$(CC) -arch $(ARCH) -mmacosx-version-min=$(MIN_VER) -O2 -Wall -fobjc-arc $(filter %.m,$^) -framework AudioToolbox -framework AppKit -framework GameController -framework CoreHaptics -framework IOKit -lz -o $@
-	codesign -f -s - --identifier com.notproton.dualsense.broker $@
-
-$(DUALSENSE_OUT)/launch: $(DUALSENSE_SRC)/launch.swift
-	@mkdir -p $(DUALSENSE_OUT)
-	swiftc -O -target $(ARCH)-apple-macos$(MIN_VER) $< -o $@
-	codesign -f -s - --identifier com.notproton.dualsense.launch $@
-
-.PHONY: dualsense dualsense-check
-dualsense: $(DUALSENSE_RUNTIME)
-
-dualsense-check: dualsense
-	$(CC) -arch arm64 -arch x86_64 $(DUALSENSE_SRC)/audio-test.c -framework CoreAudio -framework AudioUnit -o $(DUALSENSE_OUT)/audio-test
-	$(CC) -O2 $(DUALSENSE_SRC)/test-pcm-unit.c -lz -o $(DUALSENSE_OUT)/test-pcm-unit
-	$(CC) -O2 $(DUALSENSE_SRC)/test-controls.c -o $(DUALSENSE_OUT)/test-controls
-	$(DUALSENSE_OUT)/test-pcm-unit
-	$(DUALSENSE_OUT)/test-controls
-	$(CC) -O1 $(DUALSENSE_SRC)/hid-test.m -framework Foundation -framework IOKit -o $(DUALSENSE_OUT)/hid-test
-	$(DUALSENSE_OUT)/hid-test
-	$(CC) -O1 -fobjc-arc $(DUALSENSE_SRC)/output-test.m $(DUALSENSE_SRC)/PCMTransport.m -framework AudioToolbox -framework AppKit -framework GameController -framework CoreHaptics -framework IOKit -lz -o $(DUALSENSE_OUT)/output-test
-	$(DUALSENSE_OUT)/output-test
-	DSB_TEST_BUILD=$(DUALSENSE_OUT) python3 $(DUALSENSE_SRC)/test-launch.py
-	DSB_TEST_BUILD=$(DUALSENSE_OUT) python3 $(DUALSENSE_SRC)/test-bridge.py
-	DSB_TEST_BUILD=$(DUALSENSE_OUT) python3 $(DUALSENSE_SRC)/test-pcm.py
-	DSB_TEST_BUILD=$(DUALSENSE_OUT) DSB_TEST_DEFER_TIMERS=1 python3 $(DUALSENSE_SRC)/test-pcm.py
-	DSB_TEST_BUILD=$(DUALSENSE_OUT) python3 $(DUALSENSE_SRC)/test-lifecycle.py
-	DSB_TEST_BUILD=$(DUALSENSE_OUT) python3 $(DUALSENSE_SRC)/test-trigger-routing.py
-
-STEAM_RUMBLE_SRC := controllers/steam-input
-STEAM_RUMBLE_OUT := $(OUT_DIR)/controllers/steam-input
-STEAM_RUMBLE := $(STEAM_RUMBLE_OUT)/rumble.dylib
-STEAM_SDK := build/lsteamclient/steamworks_sdk_162
-STEAM_RUMBLE_FLAGS := -arch arm64 -arch x86_64 -mmacosx-version-min=$(MIN_VER) -std=c++17 -Wall -Wextra -I$(STEAM_SDK)
-
-$(STEAM_SDK)/steam_api.h: lsteamclient/fetch.sh
-	sh lsteamclient/fetch.sh
-	@touch $@
-
-$(STEAM_RUMBLE): $(STEAM_RUMBLE_SRC)/rumble.cpp $(STEAM_RUMBLE_SRC)/VirtualGamepad.h $(STEAM_RUMBLE_SRC)/SteamSession.h $(STEAM_SDK)/steam_api.h
-	@mkdir -p $(STEAM_RUMBLE_OUT)
-	clang++ -dynamiclib $(STEAM_RUMBLE_FLAGS) -O2 $< -framework CoreFoundation -framework IOKit -o $@
-	codesign -f -s - --identifier com.notproton.steam-input.rumble $@
-
-.PHONY: steam-rumble steam-rumble-check
-steam-rumble: $(STEAM_RUMBLE)
-
-steam-rumble-check: $(STEAM_RUMBLE)
-	clang++ -dynamiclib $(STEAM_RUMBLE_FLAGS) -O1 -Wno-unused-parameter $(STEAM_RUMBLE_SRC)/tests/mock-steam.cpp -o $(STEAM_RUMBLE_OUT)/steamclient.dylib
-	clang++ $(STEAM_RUMBLE_FLAGS) -g -O1 $(STEAM_RUMBLE_SRC)/tests/routing.cpp -framework CoreFoundation -framework IOKit -o $(STEAM_RUMBLE_OUT)/test-routing
-	$(STEAM_RUMBLE_OUT)/test-routing "$(CURDIR)/$(STEAM_RUMBLE_OUT)"
-	clang++ $(STEAM_RUMBLE_FLAGS) -g -O1 $(STEAM_RUMBLE_SRC)/tests/hooks.cpp -framework CoreFoundation -framework IOKit -o $(STEAM_RUMBLE_OUT)/test-hooks
-	$(STEAM_RUMBLE_OUT)/test-hooks
-	python3 $(STEAM_RUMBLE_SRC)/tests/launcher.py
-
-helpers-install: $(ICONMAKER) $(APPINFO) $(GAME_HOST) $(GAME_METADATA) $(DUALSENSE_RUNTIME) $(STEAM_RUMBLE)
-	$(call install_atomically,$(STEAM_RUMBLE),$(SUPPORT_DIR)/controllers/steam-input/rumble.dylib)
-	$(call install_atomically,$(DUALSENSE_OUT)/launch,$(SUPPORT_DIR)/controllers/dualsense/launch)
-	$(call install_atomically,$(DUALSENSE_OUT)/broker,$(SUPPORT_DIR)/controllers/dualsense/broker)
-	$(call install_atomically,$(DUALSENSE_OUT)/bridge.dylib,$(SUPPORT_DIR)/controllers/dualsense/bridge.dylib)
-	$(call install_atomically,$(GAME_HOST),$(SUPPORT_DIR)/game-host.dylib)
-	$(call install_atomically,$(GAME_METADATA),$(SUPPORT_DIR)/prepare-game-loader)
+helpers-install: $(ICONMAKER) $(APPINFO)
 	$(call install_atomically,$(ICONMAKER),$(SUPPORT_DIR)/iconmaker)
 	$(call install_atomically,$(APPINFO),$(SUPPORT_DIR)/appinfo)
 	@echo "==> Installed: $(SUPPORT_DIR)/{iconmaker,appinfo}"
@@ -753,14 +668,11 @@ bridge:
 fonts:
 	fonts/build.sh
 
-app-payload: $(TARGET) $(OVERLAY_SHIM) $(ICONMAKER) $(APPINFO) $(GAME_HOST) $(GAME_METADATA) $(DUALSENSE_RUNTIME) $(STEAM_RUMBLE)
+app-payload: $(TARGET) $(OVERLAY_SHIM) $(ICONMAKER) $(APPINFO)
 	@mkdir -p "$(APP_PAYLOAD)/signatures/macos.arm64"
-	@mkdir -p "$(APP_PAYLOAD)/controllers/steam-input"
-	cp -f $(STEAM_RUMBLE) "$(APP_PAYLOAD)/controllers/steam-input/"
-	@mkdir -p "$(APP_PAYLOAD)/controllers/dualsense"
-	cp -f $(DUALSENSE_RUNTIME) "$(APP_PAYLOAD)/controllers/dualsense/"
-	cp -f $(GAME_HOST) $(GAME_METADATA) "$(APP_PAYLOAD)/"
 	@mkdir -p "$(APP_PAYLOAD)/bridge"
+	@# Staged by 0.7.51 and earlier; left behind they fail the PAYLOAD_SIGN_IDS check.
+	@rm -rf "$(APP_PAYLOAD)/controllers" "$(APP_PAYLOAD)/game-host.dylib" "$(APP_PAYLOAD)/prepare-game-loader"
 	cp -f $(TARGET) "$(APP_PAYLOAD)/notproton.dylib"
 	cp -f $(OVERLAY_SHIM) "$(APP_PAYLOAD)/overlay-shim.dylib"
 	cp -f $(ICONMAKER) "$(APP_PAYLOAD)/iconmaker"
@@ -807,12 +719,6 @@ PAYLOAD_SIGN_IDS := \
 	overlay-shim.dylib:com.bridgeplay.overlay-shim \
 	iconmaker:com.bridgeplay.iconmaker \
 	appinfo:com.bridgeplay.appinfo \
-	game-host.dylib:com.notproton.game-host \
-	prepare-game-loader:com.notproton.game-metadata \
-	controllers/dualsense/bridge.dylib:com.notproton.dualsense.bridge \
-	controllers/dualsense/broker:com.notproton.dualsense.broker \
-	controllers/dualsense/launch:com.notproton.dualsense.launch \
-	controllers/steam-input/rumble.dylib:com.notproton.steam-input.rumble \
 	bridge/x86_64-unix-lsteamclient.so:com.bridgeplay.lsteamclient \
 	bridge/aarch64-unix-lsteamclient.so:com.bridgeplay.lsteamclient
 
@@ -968,16 +874,21 @@ native-shim-tests:
 	@if [ ! -f native-shim/tests/run.sh ]; then $(call SKIP,native-shim-tests,native-shim/tests/run.sh); exit 0; fi; \
 	sh native-shim/tests/run.sh
 
+# Inventory fixtures exercise modern and legacy Steam libraries offline.
+.PHONY: np-inventory-check
+np-inventory-check:
+	@python3 scripts/tests/np-inventory.py
+
 # Every check .github/workflows/app.yml runs, after `make app`.
 # scripts/build-local.sh --checks runs this same target, so a local release build
 # and CI gate on one list. Each check runs even when an earlier one failed.
 # overlay-shim-tests is left out: it needs a Metal GPU and real frame timing.
 CI_CHECKS := mincheck l10ncheck \
-	sigcheck callscheck webpatch-fixtures peicon-fixtures panel-behavior spawn-env \
+	sigcheck callscheck np-test-batch-check webpatch-fixtures peicon-fixtures panel-behavior spawn-env \
 	activatecheck compatcheck compatsvc-check prefixstate-check shortcutcheck launch-shell envcheck \
 	buildcheck settingscheck routecheck bridgecheck envpasscheck prefixnotecheck powernotecheck exitcheck gamedrivecheck launchercheck \
-	seedcheck gamefixescheck versioncheck cicheck padcheck compat-reported-check np-native-tests native-shim-tests \
-	app-tests native-installercheck game-host-check dualsense-check steam-rumble-check
+	seedcheck gamefixescheck versioncheck cicheck padcheck compat-reported-check np-inventory-check np-native-tests native-shim-tests \
+	app-tests native-installercheck
 
 # app.yml runs the checks that need the built app in its build job and the rest in a
 # parallel job; both lists together are CI_CHECKS.
@@ -994,7 +905,7 @@ ci-checks-source:
 # once all have finished. The slowest start first.
 CHECK_JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || echo 4)
 CHECK_LOGS := $(OUT_DIR)/check-logs
-CI_CHECKS_FIRST := app-tests dualsense-check panel-behavior launchercheck gamefixescheck
+CI_CHECKS_FIRST := app-tests panel-behavior launchercheck gamefixescheck
 CI_CHECKS_ORDERED := $(filter $(CI_CHECKS_FIRST),$(CI_CHECKS)) $(filter-out $(CI_CHECKS_FIRST),$(CI_CHECKS))
 
 ci-checks:

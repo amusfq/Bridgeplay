@@ -19,17 +19,15 @@ steps from it.
 | `*-patch/` (win32u, winemac, winebus, winecoreaudio, wined3d, ws2_32, ngx-signer) | Patches for single WineCX/WineHQ files. The rebuilt binaries are committed in `app/Sources/BridgeplayApp/Resources/` | Wine |
 | `nvapi-shim/` | Windows `nvapi64.dll` that lets games use DLSS (answered by MetalFX) | Wine |
 | `overlay-shim/` | HDR, Metal 4 and frame generation | Game process |
-| `controllers/` | DualSense Bluetooth bridge and Steam Input rumble | Game process, plus a broker process |
 | `native-launch/`, `native-shim/` | Launch wrapper and gamepad shim for native Mac games | Native game process |
-| `helpers/` | Small tools the dylib and run script call (icons, app info, game host, shortcuts) | Command line |
+| `helpers/` | Small tools the dylib and run script call (icons, app info, shortcuts) | Command line |
 | `gamefixes/` | Per-game defaults, `<appid>.conf`. Format: [docs/GAMEFIXES.md](docs/GAMEFIXES.md) | Read by the run script |
 | `installer/`, `scripts/` | The `Install.command` installer, plus build, test and release scripts | — |
 | `fonts/`, `vendor/` | Proton's font build; vendored cJSON (Dobby is cloned, see [vendor/README.md](vendor/README.md)) | — |
 | `compat/` | Game compatibility list, generated from `compat/games.json`. Don't edit `compat/README.md` by hand | — |
 
 More docs: [docs/WINECX.md](docs/WINECX.md) (engine, patch build recipes and pins),
-[docs/DXMT.md](docs/DXMT.md), [docs/dualsense-bluetooth.md](docs/dualsense-bluetooth.md),
-[docs/game-mode-host.md](docs/game-mode-host.md) and [docs/RELEASING.md](docs/RELEASING.md).
+[docs/DXMT.md](docs/DXMT.md) and [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Build and check
 
@@ -63,7 +61,6 @@ The checks the workflows run (`make -s <target>`):
   `shortcutcheck`, `launch-shell`, `envcheck`, `buildcheck`, `settingscheck`, `routecheck`,
   `bridgecheck`, `envpasscheck`, `prefixnotecheck`, `powernotecheck`, `exitcheck`, `gamedrivecheck`, `launchercheck`, `seedcheck`, `gamefixescheck`, `versioncheck`, `cicheck`,
   `compat-reported-check`
-- **Hardware-free device checks:** `game-host-check`, `dualsense-check`, `steam-rumble-check`
 
 `make tests-list` prints the test paths. A check whose tool or input is missing prints
 `skipped` and exits 0: that is not a pass. Install the tool, or say the check didn't run.

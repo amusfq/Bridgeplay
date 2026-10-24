@@ -33,28 +33,6 @@ np_support="$HOME/Library/Application Support/bridgeplay"
 if [ ! -d "$np_support" ] && [ -d "$HOME/Library/Application Support/notproton" ]; then
   np_support="$HOME/Library/Application Support/notproton"
 fi
-controller_bridge="$np_support/controllers/dualsense/launch"
-if [ "$verb" = waitforexitandrun ] && [ "${DSB_SESSION:-0}" != 1 ] && [ -x "$controller_bridge" ]; then
-  exec "$controller_bridge" "$0" "$verb" "$@"
-fi
-if [ -n "$DSB_LIBRARY" ] && [ -f "$DSB_LIBRARY" ]; then
-  export DYLD_INSERT_LIBRARIES="$DSB_LIBRARY${DYLD_INSERT_LIBRARIES:+:$DYLD_INSERT_LIBRARIES}"
-fi
-# Games read pads directly unless the launch options set BRIDGEPLAY_RAW_CONTROLLERS=0
-# (the controller block below). Settled once here, since the rumble adapter depends on it.
-: "${NOTPROTON_RAW_CONTROLLERS:=1}"
-# Steam's macOS virtual Xbox device has input but no SDL2 rumble backend.
-# The Wine-local adapter forwards only that device's rumble to native Steam, so it is
-# only inserted with direct controller access off (controllers/steam-input/README.md).
-steam_rumble="$np_support/controllers/steam-input/rumble.dylib"
-NOTPROTON_RUMBLE_LIBRARY=""
-if [ "$verb" = waitforexitandrun ] && [ "$NOTPROTON_RAW_CONTROLLERS" != 1 ] \
-  && [ "${NOTPROTON_STEAM_RUMBLE:-1}" != 0 ] && [ -f "$steam_rumble" ]; then
-  export NOTPROTON_STEAM_RUMBLE=1
-  NOTPROTON_RUMBLE_LIBRARY="$steam_rumble"
-  export DYLD_INSERT_LIBRARIES="$steam_rumble${DYLD_INSERT_LIBRARIES:+:$DYLD_INSERT_LIBRARIES}"
-fi
-export NOTPROTON_RUMBLE_LIBRARY
 iconmaker="$np_support/iconmaker"
 
 find_client_root() {
@@ -328,7 +306,8 @@ echo "app_id=$app_id (STEAM_COMPAT_APP_ID=$STEAM_COMPAT_APP_ID)" >> "$log" 2>&1 
 # macOS Steam has no virtual gamepad Wine could read, so a pad Steam Input claims (and
 # lists in SDL_GAMECONTROLLER_IGNORE_DEVICES) would reach the game as nothing. Games read
 # pads directly unless the launch options set BRIDGEPLAY_RAW_CONTROLLERS=0.
-if [ "$NOTPROTON_RAW_CONTROLLERS" = "1" ]; then
+if [ "${NOTPROTON_RAW_CONTROLLERS:-1}" = "1" ]; then
+  NOTPROTON_RAW_CONTROLLERS=1
   SDL_GAMECONTROLLER_IGNORE_DEVICES=
   export NOTPROTON_RAW_CONTROLLERS SDL_GAMECONTROLLER_IGNORE_DEVICES
 fi
@@ -2646,7 +2625,6 @@ cat > "$loader_contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.games</string>
-  <key>LSSupportsGameMode</key><true/>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
   <key>NSMicrophoneUsageDescription</key><string>This game would like to access your microphone.</string>
@@ -2668,19 +2646,18 @@ for f in "$wine_unix"/*; do
   ln -sfn "$f" "$loader_macos/$base"
 done
 ln "$WINELOADER" "$loader_macos/wine" 2>/dev/null || cp "$WINELOADER" "$loader_macos/wine"
-game_host=""
 original_loader=$WINELOADER
 if [ -x "$loader_macos/wine" ]; then
   WINELOADER="$loader_app/Contents/MacOS/wine"
-  if "$np_support/prepare-game-loader" "$loader_macos/wine" "$loader_contents/Info.plist" >> "$log" 2>&1; then
-    game_host="$np_support/game-host.dylib"
-  else
-    # A loader whose signature depends on its own wine.app (CrossOver 27's provisioning
-    # profile) is killed when run from the game's bundle, so run it where it is.
+  # A loader with com.apple.developer.* entitlements (CrossOver 27's, backed by a
+  # provisioning profile in its own wine.app) is killed when run from the game's bundle,
+  # so it runs where it is.
+  if /usr/bin/codesign -d --entitlements - "$loader_macos/wine" 2>/dev/null | grep -q 'com\.apple\.developer\.'; then
     WINELOADER=$original_loader
-    echo "embedded loader metadata unsupported; running the engine's own loader" >> "$log" 2>&1 || true
+    echo "loader needs its own wine.app; running the engine's own loader" >> "$log" 2>&1 || true
+  else
+    echo "loader staged in bundle for game mode" >> "$log" 2>&1 || true
   fi
-  echo "loader staged in bundle for game mode" >> "$log" 2>&1 || true
 else
   echo "loader staging failed, game mode unavailable" >> "$log" 2>&1 || true
 fi
@@ -2702,16 +2679,6 @@ elif [ -f "\$shim" ] && [ "\${NOTPROTON_FRAMEGEN:-0}" != 0 ] && [ "\$NOTPROTON_F
   # Frame generation lives in the shim, so it loads without the Steam overlay too.
   export DYLD_INSERT_LIBRARIES="\$shim"
   export NOTPROTON_OVERLAY_SHIM="\$shim"
-fi
-if [ -n "\$NOTPROTON_RUMBLE_LIBRARY" ] && [ -f "\$NOTPROTON_RUMBLE_LIBRARY" ]; then
-  export DYLD_INSERT_LIBRARIES="\$NOTPROTON_RUMBLE_LIBRARY\${DYLD_INSERT_LIBRARIES:+:\$DYLD_INSERT_LIBRARIES}"
-fi
-export NOTPROTON_GAME_LOADER="$WINELOADER"
-if [ -n "\$DSB_LIBRARY" ] && [ -f "\$DSB_LIBRARY" ]; then
-  export DYLD_INSERT_LIBRARIES="\$DSB_LIBRARY\${DYLD_INSERT_LIBRARIES:+:\$DYLD_INSERT_LIBRARIES}"
-fi
-if [ -n "$game_host" ]; then
-  export DYLD_INSERT_LIBRARIES="$game_host\${DYLD_INSERT_LIBRARIES:+:\$DYLD_INSERT_LIBRARIES}"
 fi
 [ -n "\$NOTPROTON_GAME_CWD" ] && cd "\$NOTPROTON_GAME_CWD"
 "$WINELOADER" "\$@"
@@ -2845,15 +2812,6 @@ for name in $np_env_passed; do
   echo "=== NOTPROTON_ENV_$name sets $name ===" >> "$log" 2>&1 || true
 done
 set -- \
-  --env NOTPROTON_RUMBLE_LIBRARY="${NOTPROTON_RUMBLE_LIBRARY:-}" \
-  --env NOTPROTON_STEAM_RUMBLE="${NOTPROTON_STEAM_RUMBLE:-}" \
-  --env NOTPROTON_RAW_CONTROLLERS="${NOTPROTON_RAW_CONTROLLERS:-}" \
-  --env DSB_SESSION="${DSB_SESSION:-}" \
-  --env DSB_LIBRARY="${DSB_LIBRARY:-}" \
-  --env DSB_PORT="${DSB_PORT:-}" \
-  --env DSB_TOKEN="${DSB_TOKEN:-}" \
-  --env DSB_RAW="${DSB_RAW:-}" \
-  --env DSB_PCM="${DSB_PCM:-}" \
   --env CX_ROOT="$CX_ROOT" \
   --env CX_HOME="$CX_HOME" \
   --env WINESERVER="$WINESERVER" \

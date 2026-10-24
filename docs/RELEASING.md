@@ -163,10 +163,8 @@ coming from ad hoc.
 | Payload file | Identifier | Runs as |
 |---|---|---|
 | `notproton.dylib` | `com.bridgeplay.notproton` | inside Steam; the app re-signs Steam's copy with the local identity below |
-| `overlay-shim.dylib`, `game-host.dylib` | `com.bridgeplay.overlay-shim`, `com.notproton.game-host` | inserted into the game's Wine loader |
-| `controllers/dualsense/bridge.dylib`, `controllers/steam-input/rumble.dylib` | `com.notproton.dualsense.bridge`, `com.notproton.steam-input.rumble` | inserted into the game's Wine loader |
-| `controllers/dualsense/launch`, `controllers/dualsense/broker` | `com.notproton.dualsense.launch`, `com.notproton.dualsense.broker` | child processes of the run script |
-| `iconmaker`, `appinfo`, `prepare-game-loader` | `com.bridgeplay.iconmaker`, `com.bridgeplay.appinfo`, `com.notproton.game-metadata` | command-line tools the run script calls |
+| `overlay-shim.dylib` | `com.bridgeplay.overlay-shim` | inserted into the game's Wine loader |
+| `iconmaker`, `appinfo` | `com.bridgeplay.iconmaker`, `com.bridgeplay.appinfo` | command-line tools the run script calls |
 | `bridge/*-unix-lsteamclient.so` | `com.bridgeplay.lsteamclient` | loaded by Wine |
 
 None of them is launched by launchd or LaunchServices, so none is its own responsible

@@ -4,7 +4,6 @@ Bridgeplay licensing
 Bridgeplay
 Copyright (C) 2026 NotProtonNot and the NotProton contributors
 Copyright (C) 2026 Leon Seemann (NotProton-WineHQ)
-Copyright (C) 2026 sn0wst0rm (controllers/, helpers/game-host.c, helpers/prepare-game-loader.swift)
 Copyright (C) 2026 Raymond Chin and the Bridgeplay contributors
 https://github.com/raymondchins/Bridgeplay
 
@@ -34,12 +33,11 @@ Sparkle 2.10.0 (https://github.com/sparkle-project/Sparkle), embedded in the app
 as Sparkle.framework for updates, is licensed under the MIT license together
 with the external licenses it lists. Full text: LICENSE.sparkle.
 
-The DualSense Bluetooth bridge (controllers/dualsense/), the Steam Input
-rumble forwarding (controllers/steam-input/) and the game-mode host
-(helpers/game-host.c, helpers/prepare-game-loader.swift) were written by
-sn0wst0rm and ported from sn0wst0rm's NotProton fork
-(https://github.com/sn0wst0rm/NotProton), GPL-3.0. The same work is proposed to
-NotProton as https://github.com/NotProtonNot/NotProton/pull/90.
+Bridgeplay 0.7.51 and earlier also shipped a DualSense Bluetooth bridge, Steam
+Input rumble forwarding and a game-mode host, written by sn0wst0rm
+(https://github.com/sn0wst0rm/NotProton, GPL-3.0). They are left out until the
+same work, proposed to NotProton as
+https://github.com/NotProtonNot/NotProton/pull/90, is merged there.
 
 Patched Wine (WineCX) binaries
 ------------------------------

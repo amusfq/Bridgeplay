@@ -137,6 +137,7 @@ enum GameReport {
     // Reports are public. Besides the home folder, run logs carry the Steam account name
     // and a video token in the passed-through Steam environment, the SteamID64 in Steam API
     // lines, the macOS user name in lsof output, and external drive names in library paths.
+    // DSB_TOKEN only appears in logs from 0.7.51 and earlier, which can still be attached.
     static func redacted(_ log: String, home: String = NSHomeDirectory(), user: String = NSUserName(),
                          computerNames: [String] = thisMacNames) -> String {
         var text = home.isEmpty ? log : log.replacingOccurrences(of: home, with: "~")
