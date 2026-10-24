@@ -190,6 +190,11 @@ compat-reported-check:
 	@if [ ! -f scripts/tests/compat-reported-commit.sh ]; then $(call SKIP,compat-reported-check,scripts/tests/compat-reported-commit.sh); exit 0; fi; \
 	sh scripts/tests/compat-reported-commit.sh
 
+# Offline test for compatible wiki pages with more than one Steam app ID.
+.PHONY: compat-reported-import-check
+compat-reported-import-check:
+	@python3 scripts/tests/compat-reported.py
+
 .PHONY: mincheck
 mincheck:
 	@if [ ! -d "$(APP_BUNDLE)" ]; then echo "==> mincheck: $(APP_BUNDLE) not present, skipped (make app builds it)"; exit 0; fi; \
@@ -885,7 +890,7 @@ np-inventory-check:
 # overlay-shim-tests is left out: it needs a Metal GPU and real frame timing.
 CI_CHECKS := mincheck l10ncheck \
 	sigcheck callscheck np-test-batch-check webpatch-fixtures peicon-fixtures panel-behavior spawn-env \
-	activatecheck compatcheck compatsvc-check prefixstate-check shortcutcheck launch-shell envcheck \
+	activatecheck compat-reported-import-check compatcheck compatsvc-check prefixstate-check shortcutcheck launch-shell envcheck \
 	buildcheck settingscheck routecheck bridgecheck envpasscheck prefixnotecheck powernotecheck exitcheck gamedrivecheck launchercheck \
 	seedcheck gamefixescheck versioncheck cicheck padcheck compat-reported-check np-inventory-check np-native-tests native-shim-tests \
 	app-tests native-installercheck
