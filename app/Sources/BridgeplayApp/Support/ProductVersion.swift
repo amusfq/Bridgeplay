@@ -50,7 +50,8 @@ enum ProductVersion {
 enum AboutPanel {
 
     // The standard panel already reads "Version 2.0.0 (32)"; the credits name what
-    // Bridgeplay is built on and point people to CrossOver, which funds Wine.
+    // Bridgeplay is built on, point people to CrossOver, which funds Wine, and carry the
+    // GPL-3.0 no-warranty notice. The copyright line comes from Info.plist.
     static func show() {
         let centered = NSMutableParagraphStyle()
         centered.alignment = .center
@@ -68,6 +69,9 @@ enum AboutPanel {
              "https://github.com/NotProtonNot/NotProton/graphs/contributors"),
             (String(localized: "Thanks to everyone who contributed on GitHub"),
              "https://github.com/raymondchins/Bridgeplay/graphs/contributors"),
+            (String(localized: "Free software under the GPL-3.0, with no warranty."), nil),
+            (String(localized: "Read the license"),
+             "https://github.com/raymondchins/Bridgeplay/blob/main/LICENSE"),
         ]
         let credits = NSMutableAttributedString()
         for line in lines {

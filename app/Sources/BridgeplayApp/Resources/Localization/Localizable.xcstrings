@@ -4434,6 +4434,22 @@
         }
       }
     },
+    "Free software under the GPL-3.0, with no warranty." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Software libero con licenza GPL-3.0, senza alcuna garanzia."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基于 GPL-3.0 许可的自由软件，不提供任何担保。"
+          }
+        }
+      }
+    },
     "Free space" : {
       "localizations" : {
         "it" : {
@@ -6702,6 +6718,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "读取组件列表"
+          }
+        }
+      }
+    },
+    "Read the license" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leggi la licenza"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "阅读许可证"
           }
         }
       }
