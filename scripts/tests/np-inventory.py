@@ -41,6 +41,33 @@ class InventoryTests(unittest.TestCase):
             self.assertEqual(["game.exe"], external["exes"])
 
 
+    def test_invalid_manifest_does_not_hide_valid_copy_in_other_library(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            primary = root / "Steam" / "steamapps"
+            external = root / "External Library" / "steamapps"
+            primary.mkdir(parents=True)
+            (external / "common" / "Valid Game").mkdir(parents=True)
+            (primary / "libraryfolders.vdf").write_text(
+                '"libraryfolders"\n{\n "1"\n {\n "path" "' +
+                str(external.parent) + '"\n }\n}\n')
+            (primary / "appmanifest_101.acf").write_text(
+                '"AppState"\n{\n "name" "Incomplete"\n}\n')
+            (external / "appmanifest_101.acf").write_text(
+                '"AppState"\n{\n "appid" "101"\n "name" "Valid Game"\n'
+                ' "installdir" "Valid Game"\n}\n')
+            (external / "common" / "Valid Game" / "game.exe").write_text("")
+            with patch.object(module, "STEAMAPPS", str(primary)), \
+                    patch.object(module, "ROOT", str(root)), \
+                    patch.object(module.L, "store", return_value={"mac": False, "windows": True}), \
+                    patch.object(module.L, "pcgw", return_value=None), \
+                    patch.object(module.L, "awacy", return_value=(None, [])):
+                module.main()
+            rows = json.loads((root / "compat" / "installed.json").read_text())
+            self.assertEqual([101], [r["appid"] for r in rows])
+            self.assertEqual(["game.exe"], rows[0]["exes"])
+
+
     def test_legacy_config_index(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

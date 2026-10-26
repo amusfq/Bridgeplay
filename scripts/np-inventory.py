@@ -33,26 +33,32 @@ def installed_manifests():
                     library = re.sub(r'\\(["\\])', r'\1', raw)
                     libraries.append(os.path.join(library, "steamapps"))
 
-    seen = set()
     for steamapps in dict.fromkeys(os.path.realpath(p) for p in libraries):
         for manifest in sorted(glob.glob(os.path.join(steamapps, "appmanifest_*.acf"))):
-            appid = os.path.basename(manifest)[len("appmanifest_"):-len(".acf")]
-            if appid not in seen:
-                seen.add(appid)
-                yield manifest
+            yield manifest
 
 
 def main():
     rows = []
+    seen = set()
     for f in installed_manifests():
         with open(f, encoding="utf-8", errors="replace") as manifest_file:
             txt = manifest_file.read()
         g = lambda k: (re.search(r'"%s"\s+"(.*)"' % k, txt) or [None, ""])[1]
-        appid = int(g("appid"))
+        appid_text = g("appid")
+        installdir = g("installdir")
+        filename_id = os.path.basename(f)[len("appmanifest_"):-len(".acf")]
+        if not re.fullmatch(r"[0-9]+", appid_text) or appid_text != filename_id or not installdir:
+            print(f"  skipping incomplete or inconsistent manifest: {f}", file=sys.stderr)
+            continue
+        appid = int(appid_text)
+        if appid in seen:
+            continue
+        seen.add(appid)
         if appid in SKIP:
             continue
         name = g("name")
-        idir = os.path.join(os.path.dirname(f), "common", g("installdir"))
+        idir = os.path.join(os.path.dirname(f), "common", installdir)
         skip = re.compile(r"unins|crash|redist|vcredist|dxsetup|dotnet|installer|setup|eac|battleye|helper|touchup|cleanup|overlayinjector|bugsplat|bssndrpt|repair|crs-|activationui", re.I)
         exes = sorted({os.path.relpath(os.path.join(d, x), idir) for d, _, fs in os.walk(idir) for x in fs
                        if x.lower().endswith(".exe") and not skip.search(x) and d[len(idir):].count(os.sep) <= 4})
