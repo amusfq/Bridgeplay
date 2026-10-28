@@ -1,4 +1,6 @@
 import AppKit
+import BridgeplayInstallerCore
+import BridgeplayUI
 import Foundation
 
 // Drives the Setup Assistant: checks first, asks only when a check fails, and runs the
@@ -48,6 +50,9 @@ final class SetupAssistant {
     var gptk: WinecxD3DMetal.Payload?
     var gptkImages: [URL]
     var skippedGraphics = false
+    // "Installing the Game Porting Toolkit" once the components download is done.
+    var gptkProgress: String?
+    @ObservationIgnored private var componentsRate = DownloadRate()
 
     // Steam
     var steamInstalled = SteamBundle.isPresent
@@ -57,6 +62,8 @@ final class SetupAssistant {
     // The keychain identity that keeps Steam's controller permission across updates.
     enum TrustState: Equatable { case unknown, needed, working, done, declined(String) }
     var trust: TrustState = .unknown
+    // An older install's identity in the login keychain, which macOS asks about when Steam is signed.
+    var trustInLoginKeychain = false
 
     // Finish
     var tasks: [SetupTask] = SetupAssistant.plannedTasks
@@ -205,6 +212,63 @@ final class SetupAssistant {
         }
     }
 
+    // The one-click installer's components zip, so the app alone is enough: BridgeplayInstallerCore
+    // checks its EdDSA signature and Apple's signature on GPTK, then runs its Install.command
+    // without the app step. That copies GPTK, the DXMT and DXVK archives and the configs, and
+    // installs Steam from Valve when it is missing.
+    func downloadGPTK() async {
+        if let refusal = MigrationLaunch.shared.refusal {
+            message = refusal
+            return
+        }
+        isWorking = true
+        defer { isWorking = false; gptkProgress = nil }
+        message = nil
+        if isPreview {
+            await pretendDownload(host: "github.com", total: 504_399_923) { gptkProgress = $0 }
+            gptk = WinecxD3DMetal.Payload(libRoot: WinecxD3DMetal.userFolder, version: nil)
+            steamInstalled = true
+            return
+        }
+        let meter = DownloadMeter.shared
+        let control = InstallerDownloadControl()
+        let work = FileManager.default.temporaryDirectory
+            .appending(path: "bridgeplay-components-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer {
+            try? FileManager.default.removeItem(at: work)
+            meter.clear()
+        }
+        do {
+            let components = try await InstallerComponents.latest()
+            componentsRate = DownloadRate()
+            meter.pauseControl = { $0 ? control.pause() : control.resume() }
+            let archive = try await components.downloadAcrossRelease(to: work, control: control) { value in
+                Task { @MainActor [weak self] in
+                    // A report that lands after the download must not bring the bar back.
+                    guard let self, self.isWorking, self.gptkProgress == nil else { return }
+                    let total = value.total ?? components.length
+                    let speed = meter.paused ? nil : self.componentsRate.add(value.received)
+                    meter.update(host: components.archiveHost, received: value.received, total: total, speed: speed,
+                                 remaining: speed.flatMap { $0 > 0 ? Double(total - value.received) / $0 : nil })
+                }
+            }
+            meter.clear()
+            gptkProgress = String(localized: "Installing the Game Porting Toolkit")
+            try await Task.detached(priority: .userInitiated) {
+                try InstallerComponents.install(archive: archive, work: work, status: { AppLog.note("setup: Install.command: \($0)") })
+            }.value
+        } catch {
+            AppLog.note("setup: components failed: \(error.localizedDescription)")
+            // The script's own reason, without the core's generic sentence in front of it.
+            let detail = if case InstallerError.componentsFailure(let reason)? = error as? InstallerError { reason }
+                else { error.localizedDescription }
+            message = String(localized: "The Game Porting Toolkit wasn't added. \(detail)")
+        }
+        gptk = WinecxD3DMetal.locate()
+        steamInstalled = SteamBundle.isPresent
+        if gptk != nil { gptkImages = [] }
+    }
+
     // MARK: Steam
 
     func installSteam() async {
@@ -247,8 +311,9 @@ final class SetupAssistant {
 
     func checkTrust() async {
         guard trust == .unknown else { return }
-        let present = await Task.detached(priority: .utility) { LocalSigning.existingHash() != nil }.value
-        if trust == .unknown { trust = present ? .done : .needed }
+        let identity = await Task.detached(priority: .utility) { LocalSigning.existing() }.value
+        trustInLoginKeychain = identity != nil && identity?.keychain == nil
+        if trust == .unknown { trust = identity != nil ? .done : .needed }
     }
 
     // One click, no password: see LocalSigning for why no prompt is needed. A failure keeps
@@ -259,6 +324,7 @@ final class SetupAssistant {
         if isPreview { await pretend(); trust = .done; return }
         do {
             _ = try await Task.detached(priority: .userInitiated) { try LocalSigning.ensure() }.value
+            trustInLoginKeychain = await Task.detached(priority: .utility) { LocalSigning.existing()?.keychain == nil }.value
             trust = .done
         } catch {
             AppLog.note("setup: signing identity not created: \(error.localizedDescription)")
