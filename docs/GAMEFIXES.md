@@ -58,7 +58,7 @@ logged, when:
 | `STDOUT_NULL` | `0`, `1` | `1` starts the game without a stdout handle, as Steam on Windows does. Source 2 treats any stdout as a console build (`Plat_IsConsoleApplication`) and then skips NGX, so Deadlock offers no DLSS |
 | `VSYNC` | `0`, `1` | `1` makes the game's Metal layer wait for the display even when the game turns vsync off, like forcing vsync in the NVIDIA control panel. For games that lock vsync off with frame generation on (Resident Evil Requiem) and tear above the refresh rate |
 | `HIDE_WINE_EXPORTS` | `0`, `1` | `1` makes `GetProcAddress` fail for ntdll's `wine_*` exports on the WineCX 11.17 engine (`hide-wine-exports-patch/`), like Wine Staging's `HideWineExports`. For games that turn features off under Wine: The Witcher 3 5.0 skips NVIDIA Streamline, so no DLSS |
-| `ROCKSTAR_SHIM` | `0`, `1` | `1` stages `rockstar-shim/`'s `version.dll` next to `SocialClubHelper.exe` (`C:\Program Files\Rockstar Games\Social Club`) and next to the game's exe at the game launch, and adds `version=n,b`. It makes the Rockstar Games Launcher's CEF windows draw on winemac and, on `dxvk`, gives GTA5.exe DXVK's dxgi instead of D3DMetal's (`NOTPROTON_ROCKSTAR_DXGI`). A `version.dll` the folder already had (a mod loader) is moved to `version.dll.bridgeplay-orig` first. Without the key, or on an engine without the shim, staged copies are removed and that file is put back, except in a game folder another launch (another macOS user's too) is still using. WineCX 11.17 only; GTA V Legacy's `gamefixes/271590.conf` sets it. Details in `rockstar-shim/README.md` |
+| `ROCKSTAR_SHIM` | `0`, `1` | `1` stages `rockstar-shim/`'s `version.dll` next to `SocialClubHelper.exe` (`C:\Program Files\Rockstar Games\Social Club`) and in the game folder (next to GTA5.exe) at the game launch, and adds `version=n,b`. It makes the Rockstar Games Launcher's CEF windows draw on winemac and, on `dxvk`, gives GTA5.exe DXVK's dxgi instead of D3DMetal's (`NOTPROTON_ROCKSTAR_DXGI`) and stages that dxgi as `dxgi.dll` in `Gameface/Binaries/Win64` with `dxgi=n,b` (SanAndreas.exe imports it statically). A `version.dll` or `dxgi.dll` already where one is staged is moved to `<name>.bridgeplay-orig` first; a `version.dll` in `Gameface/Binaries/Win64` (a mod loader) is never staged over and keeps loading. Without the key, or on an engine without the shim, staged copies are removed and that file is put back, except in a game folder another launch (another macOS user's too) is still using. WineCX 11.17 only; `gamefixes/271590.conf` (GTA V Legacy) and `gamefixes/1547000.conf` (GTA San Andreas DE) set it. Details in `rockstar-shim/README.md` |
 | `DXMT_*`, `DXVK_*`, `MVK_*`, `VKD3D_*`, `D3DM_*`, `STAGING_*` | any | Exported as is |
 | `MTL_HUD_ENABLED`, `WINEDEBUG`, `WINE_LARGE_ADDRESS_AWARE`, `WINE_CPU_TOPOLOGY` | any | Exported as is |
 | `CX_FWD_COMPAT_GL_CTX` | any | Exported as is: WineCX's switch for forward-compatible OpenGL contexts, for testing OpenGL (`wined3d`) games |
@@ -104,6 +104,12 @@ are set aside. So on that engine:
   staged into the prefix
 - `dxmt` and `dxvk` still work per game: their DLLs go into the prefix as natives (`n,b`),
   and `d3d10`/`d3d12` stay builtin, which is Apple's
+- except `d3d12` under `dxmt`: Apple's d3d12 crashes on DXMT's adapter, so the 64-bit
+  `d3d12` is Bridgeplay's `d3d12-stub` instead, staged into `system32` as a native. It
+  creates no device, as Windows on a GPU without D3D12, so a game that tries D3D12 first
+  (Unreal Engine 5, Unity 6) falls back to D3D11. A game whose `.exe` imports `d3d12.dll`
+  runs on `d3dmetal`, and the run log says so. An engine without the stub keeps Apple's
+  d3d12, and a DXMT build that ships its own `d3d12.dll` keeps that one
 - `d3dmetal` sets every D3D DLL (`d3d10`, `d3d10core`, `d3d11`, `d3d12`, `dxgi`) to `b`,
   exports `CX_GRAPHICS_BACKEND=d3dmetal` and `CX_APPLEGPTK_LIBD3DSHARED_PATH`
 - Apple's `nvapi64` and `nvngx` are set to `d` unless the conf says `NVAPI=1` and the backend is

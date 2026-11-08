@@ -585,9 +585,9 @@ managed_dlls() {
     printf '%s\n' dxgi d3d11 d3d10core
     ! d3dmetal_engine || printf '%s\n' d3d10 d3d12
     for dir in "$backend_root"/*/x86_64-windows "$backend_root"/*/i386-windows; do
-      # nvapi-shim and rockstar-shim are not Direct3D backends; their DLLs are handled with
-      # NVAPI and ROCKSTAR_SHIM below.
-      case "$dir" in "$backend_root"/wine-stock/*|"$backend_root"/nvapi-shim/*|"$backend_root"/rockstar-shim/*) continue ;; esac
+      # nvapi-shim, rockstar-shim and d3d12-stub are not Direct3D backends; their DLLs are
+      # handled with NVAPI, ROCKSTAR_SHIM and dxmt below.
+      case "$dir" in "$backend_root"/wine-stock/*|"$backend_root"/nvapi-shim/*|"$backend_root"/rockstar-shim/*|"$backend_root"/d3d12-stub/*) continue ;; esac
       [ ! -d "$dir" ] || backend_dlls "$dir"
     done
   } | sort -u
@@ -600,6 +600,17 @@ backend_available() {
     dxmt|dxvk) [ -n "$(backend_dlls "$backend_root/$1/x86_64-windows")" ] ;;
     *) return 1 ;;
   esac
+}
+
+# dxmt on a D3DMetal engine, with no d3d12 of DXMT's own. The builtin d3d12 is then Apple's,
+# which reads a null pointer on DXMT's dxgi adapter before a game can fall back to D3D11
+# (#2513), so d3d12-stub/ stands in for it: it answers D3D12CreateDevice like Windows on a
+# GPU without D3D12.
+dxmt_without_d3d12() {
+  [ "$backend" = dxmt ] && d3dmetal_engine || return 1
+  for f in "$backend_root"/dxmt/x86_64-windows/[dD]3[dD]12.[dD][lL][lL]; do
+    [ ! -f "$f" ] || return 1
+  done
 }
 
 backend_record() {
@@ -761,6 +772,12 @@ select_backend() {
     backend_from="$backend_from, fell back from $backend"
     backend=$next
   done
+  # A game whose exe imports d3d12.dll is a D3D12 game.
+  if [ "$verb" = waitforexitandrun ] && dxmt_without_d3d12 && imports_d3d12 "$1"; then
+    graphics_log "dxmt has no Direct3D 12 and the game imports d3d12.dll, running it on d3dmetal instead"
+    backend_from="$backend_from, moved to d3dmetal because the game imports d3d12.dll"
+    backend=d3dmetal
+  fi
 }
 
 # Returns 0 when the destination already matches or was replaced.
@@ -792,6 +809,7 @@ restore_stock_dll() {
   [ -f "$stock" ] && [ ! -L "$stock" ] || stock="$CX_ROOT/lib/wine/$1/$2.dll"
   [ -f "$stock" ] && [ ! -L "$stock" ] || return 0
   ! cmp -s "$stock" "$3" || return 0
+  # d3d12-stub counts here, so a stub the backend no longer wants goes back to Wine's d3d12.
   for theirs in "$backend_root"/*/"$1"/*.[dD][lL][lL]; do
     case "$theirs" in "$backend_root"/wine-stock/*|"$backend_root"/nvapi-shim/*|"$backend_root"/rockstar-shim/*) continue ;; esac
     [ -f "$theirs" ] || continue
@@ -816,6 +834,16 @@ activate_backend() {
     dxmt|dxvk) shipped=$({ backend_dlls "$backend_root/$backend/x86_64-windows"
       backend_dlls "$backend_root/$backend/i386-windows"; } | sort -u | tr '\n' ' ') ;;
   esac
+  # The stub ships with dxmt here, 64-bit only: a 32-bit game keeps the builtin.
+  d3d12_stub=""
+  if dxmt_without_d3d12; then
+    if [ -f "$backend_root/d3d12-stub/x86_64-windows/d3d12.dll" ]; then
+      d3d12_stub=d3d12
+      shipped="$shipped d3d12"
+    else
+      graphics_log "no d3d12-stub in this engine, Apple's d3d12 stays builtin under dxmt"
+    fi
+  fi
   staging_failed=0
   for pair in x86_64-windows:system32 i386-windows:syswow64; do
     arch=${pair%%:*}
@@ -825,11 +853,14 @@ activate_backend() {
     case "$backend" in
       dxmt|dxvk) ships=$(backend_dlls "$backend_root/$backend/$arch" | tr '\n' ' ') ;;
     esac
+    [ "$arch" != x86_64-windows ] || ships="$ships $d3d12_stub"
     for name in $managed; do
       case " $ships " in
         *" $name "*)
-          if ! stage_backend_file "$backend_root/$backend/$arch/$name.dll" "$dir/$name.dll"; then
-            graphics_log "could not stage $backend $arch/$name.dll into the prefix"
+          src="$backend_root/$backend/$arch/$name.dll"
+          [ -f "$src" ] || src="$backend_root/d3d12-stub/$arch/$name.dll"
+          if ! stage_backend_file "$src" "$dir/$name.dll"; then
+            graphics_log "could not stage ${src#"$backend_root/"} into the prefix"
             staging_failed=1
           fi ;;
         *)
@@ -838,6 +869,14 @@ activate_backend() {
       esac
     done
   done
+  # d3d12 is managed only on a D3DMetal engine, so a stub left from before the engine's
+  # D3DMetal was unlinked goes back to Wine's copy here.
+  stub="$backend_root/d3d12-stub/x86_64-windows/d3d12.dll"
+  if ! d3dmetal_engine && [ -n "$WINEPREFIX" ] && [ -f "$stub" ] \
+    && cmp -s "$stub" "$WINEPREFIX/drive_c/windows/system32/d3d12.dll"; then
+    restore_stock_dll x86_64-windows d3d12 "$WINEPREFIX/drive_c/windows/system32/d3d12.dll" \
+      || graphics_log "could not restore Wine's x86_64-windows/d3d12.dll in the prefix"
+  fi
   if [ "$staging_failed" -eq 1 ]; then
     if d3dmetal_engine; then next=d3dmetal; else next=wined3d; fi
     graphics_log "$backend could not be staged, falling back to $next"
@@ -856,6 +895,7 @@ activate_backend() {
   done
   backend_overrides="${native:+$native=n,b}"
   [ -z "$builtin" ] || backend_overrides="${backend_overrides:+$backend_overrides;}$builtin=b"
+  [ -z "$d3d12_stub" ] || graphics_log "d3d12 is d3d12-stub: dxmt has no Direct3D 12, so a game that tries it first falls back to Direct3D 11"
   # A linked Game Porting Toolkit can bring Apple's nvapi64 and nvngx (DLSS on MetalFX) into
   # lib/wine. An nvapi that answers sends some games down NVIDIA-only paths, so both stay
   # disabled unless the game's conf says NVAPI=1, and then only on D3DMetal, the only
@@ -916,6 +956,41 @@ rockstar_shim_copy() {
   cmp -s "$1" "$2" || LC_ALL=C grep -qaF 'rockstar-shim: ' "$2"
 }
 
+# Puts the player's $2 back from $1. A dxgi.dll's note goes first, so it can never name the
+# player's file; while one that would cannot be removed, the file stays in its backup.
+rockstar_put_back() {
+  case "$2" in */dxgi.dll)
+    if ! rm -f "$2.bridgeplay-staged" 2>> "$log"; then
+      sum=$(/usr/bin/shasum -a 256 "$1" 2>/dev/null | cut -d ' ' -f 1)
+      [ -n "$sum" ] && ! grep -qxF -- "$sum" "$2.bridgeplay-staged" 2>/dev/null || return 1
+    fi ;;
+  esac
+  mv "$1" "$2" 2>> "$log"
+}
+
+# DXVK's dxgi carries no such prefix and a player may copy the same release there by hand, so
+# a dxgi.dll is ours only when its sha256 is one a launch noted beside it before staging. That
+# also holds after an engine update changed dxgx.dll and on an engine without it.
+rockstar_dxgi_copy() {
+  [ -f "$1" ] && [ ! -L "$1" ] && [ -f "$1.bridgeplay-staged" ] && [ ! -L "$1.bridgeplay-staged" ] || return 1
+  sum=$(/usr/bin/shasum -a 256 "$1" 2>/dev/null | cut -d ' ' -f 1)
+  [ -n "$sum" ] && grep -qxF -- "$sum" "$1.bridgeplay-staged"
+}
+
+# Writes the sha256s after $1 to the note $1, one per line. Written aside and renamed over, so
+# a link another user puts at the note's name is replaced, never written through, and a note
+# another user wrote is still updated. A folder at that name fails it.
+rockstar_note() {
+  note=$1
+  shift
+  if rm -f "$note.$$" && (umask 022; set -C; printf '%s\n' "$@" > "$note.$$") \
+    && { [ ! -L "$note" ] || rm -f "$note"; } && [ ! -d "$note" ] && mv -f "$note.$$" "$note"; then
+    return 0
+  fi
+  rm -f "$note.$$" 2>/dev/null || true
+  return 1
+}
+
 # Opens fd $1 on the lock file $2, created readable by every macOS user sharing the folder:
 # read-write when it can be (some network volumes lock only a writable fd), else read-only.
 # The exclusive create never makes a file through a link another user puts there, and a
@@ -933,6 +1008,8 @@ rockstar_shim_lock_fd() {
 rockstar_shim_in_use() {
   for held in "$1"/.bridgeplay-rockstar-shim.*.inuse; do
     [ -f "$held" ] && [ ! -L "$held" ] || continue
+    # The mark this launch holds itself says nothing about another one.
+    [ "$held" != "${own_mark:-}" ] || continue
     rc=0
     /usr/bin/lockf -k -n -s -t 0 "$held" true 2>/dev/null || rc=$?
     [ "$rc" != 75 ] || return 0
@@ -940,7 +1017,9 @@ rockstar_shim_in_use() {
   return 1
 }
 
-# Stages, removes or restores version.dll in Social Club and the game folder. The first lock
+# Stages, removes or restores version.dll in Social Club and the game folder, and DXVK's dxgi
+# as dxgi.dll in Unreal's exe folder inside it when $dxgi_wanted is 1 (under the game folder's
+# lock and in-use marks). The first lock
 # is per macOS user. Several users can share the game folder, so it also gets a lock of its
 # own, taken only when the folder has something of the shim's in it. A volume that cannot
 # hold that lock falls back to the per-user one. Exits 3 when another launch held it.
@@ -949,12 +1028,18 @@ rockstar_shim_folders() {
     exec 6>> "$np_support/.rockstar-shim.lock" && /usr/bin/lockf -s -t 30 6 || exit 1
     game=${STEAM_COMPAT_INSTALL_PATH:-}
     lock="$game/.bridgeplay-rockstar-shim.lock"
+    # Unreal's exe (GTA San Andreas DE's SanAndreas.exe) is not in the game folder's root.
+    win64="$game/Gameface/Binaries/Win64"
     game_locked=0
     busy=0
     if [ -z "$game" ] || [ ! -d "$game" ]; then
       game=""
     elif [ "$shim_wanted" = 1 ] || [ -f "$lock" ] || [ -e "$game/version.dll.bridgeplay-orig" ] \
-      || [ -L "$game/version.dll.bridgeplay-orig" ] || rockstar_shim_copy "$shim/version.dll" "$game/version.dll"; then
+      || [ -L "$game/version.dll.bridgeplay-orig" ] || rockstar_shim_copy "$shim/version.dll" "$game/version.dll" \
+      || [ -e "$win64/version.dll.bridgeplay-orig" ] || [ -L "$win64/version.dll.bridgeplay-orig" ] \
+      || rockstar_shim_copy "$shim/version.dll" "$win64/version.dll" \
+      || [ -e "$win64/dxgi.dll.bridgeplay-orig" ] || [ -L "$win64/dxgi.dll.bridgeplay-orig" ] \
+      || rockstar_dxgi_copy "$win64/dxgi.dll"; then
       rc=1
       if rockstar_shim_lock_fd 7 "$lock"; then rc=0; /usr/bin/lockf -s -t 30 7 || rc=$?; fi
       if [ "$rc" = 0 ]; then
@@ -969,60 +1054,101 @@ rockstar_shim_folders() {
     else
       game=""
     fi
-    for dir in "$social_club" "$game"; do
+    [ -n "$game" ] || win64=""
+    for dir in "$social_club" "$game" "$win64"; do
       [ -n "$dir" ] && [ -d "$dir" ] || continue
-      target="$dir/version.dll"
-      saved="$dir/version.dll.bridgeplay-orig"
-      is_shim=0
-      ! rockstar_shim_copy "$shim/version.dll" "$target" || is_shim=1
-      # A launch of an older build killed between claiming the backup name and the move
-      # left it empty, with the game's own file still in place. One still claiming it now
-      # made it moments ago.
-      if [ -f "$saved" ] && [ ! -L "$saved" ] && [ ! -s "$saved" ] \
-        && { [ -e "$target" ] || [ -L "$target" ]; } && [ "$is_shim" = 0 ] \
-        && [ -n "$(find "$saved" -prune -mmin +1 2>/dev/null)" ]; then
-        rm -f "$saved" 2>> "$log" && graphics_log "rockstar-shim: removed an empty version.dll.bridgeplay-orig from $dir"
-      fi
-      if [ "$shim_wanted" = 1 ]; then
-        moved=0
-        if { [ -e "$target" ] || [ -L "$target" ]; } && [ "$is_shim" = 0 ]; then
-          if [ -e "$saved" ] || [ -L "$saved" ]; then
-            graphics_log "rockstar-shim: $dir has its own version.dll and a version.dll.bridgeplay-orig, both left alone"
-            continue
+      for name in version.dll dxgi.dll; do
+        src=$shim/version.dll
+        want=$shim_wanted
+        if [ "$name" = dxgi.dll ]; then
+          # SanAndreas.exe imports dxgi.dll statically, so DXVK's goes beside it as dxgi.dll.
+          [ "$dir" = "$win64" ] || continue
+          src=$shim/dxgx.dll
+          want=$dxgi_wanted
+        elif [ "$dir" = "$win64" ]; then
+          # The shim acts only in SocialClubHelper.exe and GTA5.exe, so the exe folder never
+          # gets it: a mod loader's version.dll there keeps loading. One an earlier build
+          # staged comes out.
+          want=0
+        fi
+        target="$dir/$name"
+        saved="$dir/$name.bridgeplay-orig"
+        is_shim=0
+        if [ "$name" = dxgi.dll ]; then
+          ! rockstar_dxgi_copy "$target" || is_shim=1
+          # The note names a copy that is no longer there.
+          [ "$is_shim" = 1 ] || rm -f "$target.bridgeplay-staged" 2>/dev/null || true
+        else
+          ! rockstar_shim_copy "$src" "$target" || is_shim=1
+        fi
+        # A launch of an older build killed between claiming the backup name and the move
+        # left it empty, with the game's own file still in place. One still claiming it now
+        # made it moments ago.
+        if [ -f "$saved" ] && [ ! -L "$saved" ] && [ ! -s "$saved" ] \
+          && { [ -e "$target" ] || [ -L "$target" ]; } && [ "$is_shim" = 0 ] \
+          && [ -n "$(find "$saved" -prune -mmin +1 2>/dev/null)" ]; then
+          rm -f "$saved" 2>> "$log" && graphics_log "rockstar-shim: removed an empty $name.bridgeplay-orig from $dir"
+        fi
+        if [ "$want" = 1 ]; then
+          moved=0
+          if { [ -e "$target" ] || [ -L "$target" ]; } && [ "$is_shim" = 0 ]; then
+            if [ -e "$saved" ] || [ -L "$saved" ]; then
+              graphics_log "rockstar-shim: $dir has its own $name and a $name.bridgeplay-orig, both left alone"
+              continue
+            fi
+            # One rename: a killed launch leaves the file under one name or the other, never
+            # an empty backup. Without the folder's lock another user's launch could rename a
+            # file over it, so then the game's own file stays.
+            if { [ "$dir" != "$social_club" ] && [ "$game_locked" = 0 ]; } || ! mv "$target" "$saved" 2>> "$log"; then
+              graphics_log "rockstar-shim: could not set aside the $name in $dir, left alone"
+              continue
+            fi
+            moved=1
+            graphics_log "rockstar-shim: moved the $name in $dir to $name.bridgeplay-orig"
           fi
-          # One rename: a killed launch leaves the file under one name or the other, never
-          # an empty backup. Without the folder's lock another user's launch could rename a
-          # file over it, so then the game's own file stays.
-          if { [ "$dir" = "$game" ] && [ "$game_locked" = 0 ]; } || ! mv "$target" "$saved" 2>> "$log"; then
-            graphics_log "rockstar-shim: could not set aside the version.dll in $dir, left alone"
-            continue
+          # DXVK's dxgi is noted before it is staged, along with the copy of ours it replaces,
+          # so a launch killed at any point leaves every dxgi.dll of ours known as ours.
+          old=""
+          if [ "$name" = dxgi.dll ]; then
+            sum=$(/usr/bin/shasum -a 256 "$src" 2>/dev/null | cut -d ' ' -f 1)
+            [ "$is_shim" = 0 ] || old=$(/usr/bin/shasum -a 256 "$target" 2>/dev/null | cut -d ' ' -f 1)
+            if [ -z "$sum" ] || ! rockstar_note "$target.bridgeplay-staged" "$sum" ${old:+"$old"} 2>> "$log"; then
+              graphics_log "rockstar-shim: could not note the dxgi.dll to stage in $dir, left as it was"
+              [ "$moved" = 0 ] || rockstar_put_back "$saved" "$target" || true
+              continue
+            fi
           fi
-          moved=1
-          graphics_log "rockstar-shim: moved the version.dll in $dir to version.dll.bridgeplay-orig"
+          if ! stage_backend_file "$src" "$target"; then
+            graphics_log "rockstar-shim: could not stage $name into $dir"
+            [ "$moved" = 0 ] || rockstar_put_back "$saved" "$target" || true
+          elif [ "$dir" != "$social_club" ]; then
+            # Other macOS users' launches read it too.
+            chmod a+r "$target" 2>/dev/null || true
+            # The copy it replaced is gone.
+            [ -z "$old" ] || rockstar_note "$target.bridgeplay-staged" "$sum" 2>> "$log" || true
+          fi
+          continue
         fi
-        if ! stage_backend_file "$shim/version.dll" "$target"; then
-          graphics_log "rockstar-shim: could not stage version.dll into $dir"
-          [ "$moved" = 0 ] || mv "$saved" "$target" 2>> "$log" || true
-        elif [ "$dir" = "$game" ]; then
-          # Other macOS users' launches read it too.
-          chmod a+r "$target" 2>/dev/null || true
+        # The in-use marks are in the game folder, also for the exe folder inside it.
+        held_in=$dir
+        [ "$dir" != "$win64" ] || held_in=$game
+        if rockstar_shim_in_use "$held_in"; then
+          graphics_log "rockstar-shim: another launch is using the $name in $dir, left alone"
+          continue
         fi
-        continue
-      fi
-      if rockstar_shim_in_use "$dir"; then
-        graphics_log "rockstar-shim: another launch is using the version.dll in $dir, left alone"
-        continue
-      fi
-      if [ "$is_shim" = 1 ]; then
-        rm -f "$target" 2>> "$log" && graphics_log "rockstar-shim: removed version.dll from $dir"
-      fi
-      if [ -e "$saved" ] || [ -L "$saved" ]; then
-        if [ -e "$target" ] || [ -L "$target" ]; then
-          graphics_log "rockstar-shim: $dir has a new version.dll, version.dll.bridgeplay-orig left alone"
-        elif mv "$saved" "$target" 2>> "$log"; then
-          graphics_log "rockstar-shim: put the version.dll in $dir back"
+        if [ "$is_shim" = 1 ]; then
+          # The note goes only with the copy it names.
+          rm -f "$target" 2>> "$log" && graphics_log "rockstar-shim: removed $name from $dir" \
+            && rm -f "$target.bridgeplay-staged" 2>/dev/null || true
         fi
-      fi
+        if [ -e "$saved" ] || [ -L "$saved" ]; then
+          if [ -e "$target" ] || [ -L "$target" ]; then
+            graphics_log "rockstar-shim: $dir has a new $name, $name.bridgeplay-orig left alone"
+          elif rockstar_put_back "$saved" "$target"; then
+            graphics_log "rockstar-shim: put the $name in $dir back"
+          fi
+        fi
+      done
     done
     [ "$busy" = 0 ] || exit 3
     exit 0
@@ -1031,16 +1157,20 @@ rockstar_shim_folders() {
 
 # Rockstar Games Launcher and GTA V Legacy (ROCKSTAR_SHIM=1, rockstar-shim/): a version.dll
 # next to SocialClubHelper.exe makes the launcher's CEF windows draw on winemac, and the one
-# next to the game hands GTA5.exe DXVK's dxgi on the dxvk backend. The game folder only ever
-# gets version.dll. A version.dll of the game's own (a mod loader) is moved to
-# version.dll.bridgeplay-orig first. Without the key, or on an engine without the shim, the
-# staged copy is removed and that file put back, unless another launch is using the folder.
+# next to the game hands GTA5.exe DXVK's dxgi on the dxvk backend. Unreal's exe folder
+# (SanAndreas.exe) gets only DXVK's dxgi as dxgi.dll, as the game imports it statically. A
+# version.dll or dxgi.dll of the game's own (a mod loader) is moved to <name>.bridgeplay-orig
+# first. Without the key, or on an engine without the shim, the staged copy is removed and
+# that file put back, unless another launch is using the folder.
 stage_rockstar_shim() {
   shim="$backend_root/rockstar-shim/x86_64-windows"
   social_club="$WINEPREFIX/drive_c/Program Files/Rockstar Games/Social Club"
   shim_wanted=0
+  dxgi_wanted=0
+  own_mark=""
   if [ "$gamefix_rockstar_shim" = 1 ] && [ "$verb" = waitforexitandrun ]; then
     [ ! -f "$shim/version.dll" ] || shim_wanted=1
+    [ "$shim_wanted" = 0 ] || [ "$backend" != dxvk ] || [ ! -f "$shim/dxgx.dll" ] || dxgi_wanted=1
   elif [ "$gamefix_rockstar_shim" = 1 ]; then
     # Helpers (verb run) leave the game's files as they are.
     return 0
@@ -1052,8 +1182,11 @@ stage_rockstar_shim() {
     inuse="$STEAM_COMPAT_INSTALL_PATH/.bridgeplay-rockstar-shim.$(id -u)-$(printf '%s' "${STEAM_COMPAT_DATA_PATH:-}" | cksum | cut -d ' ' -f 1)"
     # A mark the previous launch of this prefix still holds while it shuts down sends this
     # launch to a second one.
-    if ! { rockstar_shim_lock_fd 5 "$inuse.inuse" && /usr/bin/lockf -s -t 1 5; } \
-      && ! { rockstar_shim_lock_fd 5 "$inuse-2.inuse" && /usr/bin/lockf -s -t 5 5; }; then
+    if { rockstar_shim_lock_fd 5 "$inuse.inuse" && /usr/bin/lockf -s -t 1 5; }; then
+      own_mark="$inuse.inuse"
+    elif { rockstar_shim_lock_fd 5 "$inuse-2.inuse" && /usr/bin/lockf -s -t 5 5; }; then
+      own_mark="$inuse-2.inuse"
+    else
       graphics_log "rockstar-shim: could not mark the game folder in use"
     fi
   fi
@@ -1068,13 +1201,23 @@ stage_rockstar_shim() {
   fi
   # No shim of any build in the game folder, nothing there for other launches to leave
   # alone. A folder another launch is staging keeps the mark.
-  [ "$folders" = 3 ] || rockstar_shim_copy "$shim/version.dll" "${STEAM_COMPAT_INSTALL_PATH:-}/version.dll" || exec 5>&-
+  win64=""
+  [ -z "${STEAM_COMPAT_INSTALL_PATH:-}" ] || win64="$STEAM_COMPAT_INSTALL_PATH/Gameface/Binaries/Win64"
+  [ "$folders" = 3 ] || rockstar_shim_copy "$shim/version.dll" "${STEAM_COMPAT_INSTALL_PATH:-}/version.dll" \
+    || { [ -n "$win64" ] && rockstar_shim_copy "$shim/version.dll" "$win64/version.dll"; } \
+    || { [ -n "$win64" ] && rockstar_dxgi_copy "$win64/dxgi.dll"; } || exec 5>&-
   gamefix_dlloverrides="${gamefix_dlloverrides:+$gamefix_dlloverrides;}version=n,b"
   # dxgx.dll is DXVK's dxgi under a name the backend's dxgi=b does not cover.
   if [ "$backend" = dxvk ] && [ -f "$shim/dxgx.dll" ]; then
     NOTPROTON_ROCKSTAR_DXGI="Z:$(printf '%s' "$shim/dxgx.dll" | tr / '\134')"
     export NOTPROTON_ROCKSTAR_DXGI
     graphics_log "rockstar-shim: GTA5.exe gets DXVK's dxgi"
+  fi
+  # An Unreal game links dxgi.dll statically: DXVK's copy beside its exe, native first. Only
+  # when it is there (a user's own dxgi.dll left alone is not ours to load first).
+  if [ "$dxgi_wanted" = 1 ] && [ -n "$win64" ] && rockstar_shim_copy "$shim/dxgx.dll" "$win64/dxgi.dll"; then
+    gamefix_dlloverrides="${gamefix_dlloverrides:+$gamefix_dlloverrides;}dxgi=n,b"
+    graphics_log "rockstar-shim: DXVK's dxgi staged beside the game exe, dxgi=n,b"
   fi
 }
 
@@ -1895,6 +2038,239 @@ lay_out_proton_profile() {
     && ln -s steamuser "$users/crossover" 2>/dev/null; then
     echo "=== pointed crossover at steamuser ===" >> "$log" 2>&1 || true
   fi
+  fold_wine_profile
+}
+
+# Stock Wine (the WineHQ engine) names the profile after the Mac user, where CrossOver's
+# lineage uses crossover. Same rule as set_home_dir in Wine's ntdll/unix/loader.c.
+wine_profile_name() {
+  case "$np_build" in winehq-*) ;; *) return 1 ;; esac
+  wine_user=${USER:-}
+  [ -n "$wine_user" ] || wine_user=$(id -un 2>/dev/null) || return 1
+  wine_user=${wine_user##*/}
+  wine_user=${wine_user##*\\}
+  case "$(printf '%s' "$wine_user" | tr '[:upper:]' '[:lower:]')" in
+    ''|.|..|steamuser|crossover|public) return 1 ;;
+  esac
+  printf '%s' "$wine_user"
+}
+
+present() { [ -e "$1" ] || [ -L "$1" ]; }
+
+# The name in $1 that $2 matches ignoring case, else $2. A case-sensitive volume keeps
+# "Saves" and "saves" apart, but Wine reads them as one.
+fold_landing() {
+  # Listed from inside, so only "./<name>" lines are names; a newline in one cannot pass
+  # for another name once checked on disk.
+  matches=$(cd -P -- "$1" 2>/dev/null && find . -mindepth 1 -maxdepth 1 | want=$2 awk '
+    substr($0, 1, 2) == "./" && tolower(substr($0, 3)) == tolower(ENVIRON["want"]) {
+      print substr($0, 3)
+    }') || matches=""
+  while IFS= read -r found; do
+    if [ -n "$found" ] && present "$1/$found"; then
+      printf '%s' "$1/$found"
+      return 0
+    fi
+  done <<EOF_MATCHES
+$matches
+EOF_MATCHES
+  printf '%s' "$1/$2"
+}
+
+# Renames $1 to the free name $2. mv puts it inside a folder that appeared at $2 since the
+# check, so the inode says where it went, and a move that nested goes back. Each move is
+# noted first, relative to users so a moved library still matches, and the next launch puts
+# back one that a killed launch left nested. No move starts while one is unresolved.
+fold_move() {
+  ! present "$fold_record" || return 1
+  # The note is one path per line, so a name with a line break stays put.
+  case "${1#"$users"/}${2#"$users"/}" in *'
+'*)
+    echo "=== ${1#"$users"/} has a line break in its name, rename it to move it into steamuser ===" \
+      >> "$log" 2>&1 || true
+    return 1 ;;
+  esac
+  moving=$(stat -f %i "$1" 2>/dev/null) || return 1
+  printf '%s\n%s\n%s\n' "$moving" "${1#"$users"/}" "${2#"$users"/}" > "$fold_record" || return 1
+  mv -n "$1" "$2" 2>> "$log" || return 1
+  fold_unnest
+}
+
+# Puts back the move noted by fold_move if it went inside a folder at its target's name.
+# Returns 0 only for a move that landed. The note goes only once the file is found where it
+# landed or where it started; while it is anywhere else the note stays and launches stop.
+fold_unnest() {
+  present "$fold_record" || return 0
+  fold_moved="" fold_source="" fold_target=""
+  if [ -f "$fold_record" ] && [ ! -L "$fold_record" ]; then
+    { IFS= read -r fold_moved && IFS= read -r fold_source && IFS= read -r fold_target; } \
+      < "$fold_record" || true
+  fi
+  case "/$fold_source/:/$fold_target/" in
+    *//*|*/../*|*/./*) fold_moved="" ;;
+  esac
+  case "$fold_moved" in ''|*[!0-9]*)
+    # Only a note, never a file a game wrote: dropping it leaves every save where it is.
+    echo "=== dropped an unreadable note of a move into steamuser ===" >> "$log" 2>&1 || true
+    rm -f "$fold_record" 2>/dev/null || true
+    return 1 ;;
+  esac
+  fold_source="$users/$fold_source"
+  fold_target="$users/$fold_target"
+  if [ "$(stat -f %i "$fold_target" 2>/dev/null)" = "$fold_moved" ] && ! present "$fold_source"; then
+    rm -f "$fold_record"
+    return 0
+  fi
+  fold_nested="$fold_target/${fold_source##*/}"
+  if [ "$(stat -f %i "$fold_nested" 2>/dev/null)" = "$fold_moved" ] && ! present "$fold_source"; then
+    # A killed launch may have left the source's folder gone.
+    mkdir -p "${fold_source%/*}" 2>/dev/null || true
+    mv -n "$fold_nested" "$fold_source" 2>> "$log" || true
+    if [ "$(stat -f %i "$fold_source" 2>/dev/null)" = "$fold_moved" ]; then
+      echo "=== put back ${fold_source#"$users"/}, which went inside a folder at its name ===" \
+        >> "$log" 2>&1 || true
+    fi
+  fi
+  # A move put back, or one that never happened, did not land.
+  if [ "$(stat -f %i "$fold_source" 2>/dev/null)" = "$fold_moved" ]; then
+    rm -f "$fold_record"
+  else
+    echo "=== ${fold_source#"$users"/} is not where its move left it; put it back, then delete $fold_record ===" \
+      >> "$log" 2>&1 || true
+  fi
+  return 1
+}
+
+fold_inside_profile() {
+  fold_resolved=$(cd -P -- "$1" 2>/dev/null && pwd) || return 1
+  fold_profile=$(cd -P -- "$profile" 2>/dev/null && pwd) || return 1
+  case "$fold_resolved/" in "$fold_profile"/?*) return 0 ;; esac
+  return 1
+}
+
+# Moves what is in $1 into $2. Renames only, so a launch killed partway leaves every file
+# whole on one side or the other. A file that differs from the one already in $2 is kept
+# beside it as "<name> BACKUP" and printed. Fails if anything could not move.
+fold_user_dir() (
+  status=0
+  # Unreadable, the folder would look empty and be dropped from the live profile.
+  [ -r "$1" ] && [ -x "$1" ] || exit 1
+  for entry in "$1"/* "$1"/.[!.]* "$1"/..?*; do
+    present "$entry" || continue
+    landing="$2/${entry##*/}"
+    if [ "$fold_case" = 1 ] && ! present "$landing"; then
+      landing=$(fold_landing "$2" "${entry##*/}")
+    fi
+    if ! present "$landing"; then
+      fold_move "$entry" "$landing" || status=1
+      continue
+    fi
+    # Wine's links out to the Mac's home folders: what is behind them stays there.
+    [ ! -L "$entry" ] || continue
+    # A link inside steamuser (My Documents to Documents) is merged through, as
+    # migrate_user_paths does; one that leads out of the profile is not.
+    if [ -d "$entry" ] && [ -d "$landing" ] && { [ ! -L "$landing" ] || fold_inside_profile "$landing"; }; then
+      if fold_user_dir "$entry" "$landing"; then
+        rmdir "$entry" 2>/dev/null || true
+      else
+        status=1
+      fi
+      continue
+    fi
+    # The live name, then "<name> BACKUP", "<name> BACKUP 2"...: a copy already there is
+    # dropped, otherwise the first free name takes it.
+    parked=$landing
+    parked_number=1
+    while present "$parked"; do
+      if [ -f "$entry" ] && [ -f "$parked" ] && [ ! -L "$parked" ] && cmp -s "$entry" "$parked"; then
+        rm -f "$entry" || status=1
+        continue 2
+      fi
+      parked="$landing BACKUP"
+      [ "$parked_number" -eq 1 ] || parked="$parked $parked_number"
+      parked_number=$((parked_number + 1))
+    done
+    if fold_move "$entry" "$parked"; then
+      printf '%s\n' "$parked"
+    else
+      status=1
+    fi
+  done
+  exit "$status"
+)
+
+# Steam Cloud syncs users/steamuser, so a profile under the Mac user's name splits a game's
+# saves from its cloud saves (#2618). Folds it into steamuser and links the name there.
+fold_wine_profile() {
+  wine_user=$(wine_profile_name) || return 0
+  fold_record="$users/.notproton-fold-moving"
+  fold_unnest || true
+  if present "$fold_record"; then
+    echo "=== an earlier move into steamuser could not be put back ===" >> "$log" 2>&1 || true
+    return 1
+  fi
+  own="$users/$wine_user"
+  if [ -L "$own" ]; then
+    [ "$(readlink "$own")" = steamuser ] \
+      || echo "=== users/$wine_user is a link elsewhere, cloud saves may be split ===" >> "$log" 2>&1 \
+      || true
+    return 0
+  fi
+  [ ! "$own" -ef "$profile" ] || return 0
+  if [ -e "$own" ]; then
+    if [ ! -d "$own" ]; then
+      echo "=== users/$wine_user is not a folder, cloud saves may be split ===" >> "$log" 2>&1 || true
+      return 0
+    fi
+    fold_case=1
+    [ ! "$users/STEAMUSER" -ef "$profile" ] || fold_case=0
+    leftover=""
+    if fold_parked=$(fold_user_dir "$own" "$profile"); then
+      find "$own" -depth -type d -empty -delete 2>/dev/null || true
+      # Only Wine's links out to the Mac's home folders may be left.
+      if present "$own"; then
+        leftover=$(find "$own" ! -type d ! -type l 2>&1) || leftover=unreadable
+      fi
+    else
+      leftover=unmoved
+    fi
+    if [ -n "$fold_parked" ]; then
+      printf '%s\n' "$fold_parked" | sed 's/^/=== kept both copies, this one as: /; s/$/ ===/' \
+        >> "$log" 2>&1 || true
+    fi
+    if [ -n "$leftover" ]; then
+      echo "=== users/$wine_user did not all move into steamuser, left in place ===" \
+        >> "$log" 2>&1 || true
+      return 1
+    fi
+    fold_homes=""
+    if present "$own"; then
+      # What a game saved through these is in the Mac's home folders, and stays there.
+      fold_homes=$(find "$own" -type l 2>/dev/null) || fold_homes=""
+      printf '%s\n' "$fold_homes" | while IFS= read -r home_link; do
+        [ -n "$home_link" ] || continue
+        echo "=== ${home_link#"$users"/} led to $(readlink "$home_link"), whose files stay there ===" \
+          >> "$log" 2>&1 || true
+      done
+      # Kept as a pointer to the Mac's home folders the links lead to.
+      aside="$own BACKUP"
+      aside_number=2
+      while present "$aside"; do
+        aside="$own BACKUP $aside_number"
+        aside_number=$((aside_number + 1))
+      done
+      mv -n "$own" "$aside" 2>> "$log" || return 1
+    fi
+    echo "=== moved users/$wine_user into steamuser, where Steam Cloud syncs ===" >> "$log" 2>&1 || true
+    fold_note=""
+    [ -z "$fold_parked" ] \
+      || fold_note="Files that differed from Steam Cloud's copy were kept beside it with BACKUP in the name."
+    [ -z "$fold_homes" ] \
+      || fold_note="${fold_note:+$fold_note }Files the game kept in your Mac's Documents and other home folders stay there."
+    [ -z "$fold_note" ] || notify_user "Saved games moved to where Steam Cloud syncs" "$fold_note"
+  fi
+  ln -s steamuser "$own" 2>/dev/null \
+    || echo "=== could not point users/$wine_user at steamuser ===" >> "$log" 2>&1 || true
 }
 
 controller_ids() {
@@ -2405,6 +2781,7 @@ finish_dead_seeds() {
 }
 
 prefix_is_bare() (
+  own_profile=$(wine_profile_name) || own_profile=""
   set -- ""
   while [ "$#" -gt 0 ]; do
     relative=$1
@@ -2421,6 +2798,7 @@ prefix_is_bare() (
         fi
         case "$part:$(readlink "$node")" in
           /dosdevices/c::../drive_c|/dosdevices/z::/|/drive_c/users/crossover:steamuser|\
+          "/drive_c/users/$own_profile:steamuser"|\
           '/drive_c/users/steamuser/My Documents:./Documents'|\
           '/drive_c/users/steamuser/Application Data:./AppData/Roaming'|\
           '/drive_c/users/steamuser/Local Settings/Application Data:../AppData/Local') continue ;;
