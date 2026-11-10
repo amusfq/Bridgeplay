@@ -20,7 +20,11 @@
 #define modifier_others ((1UL << 17) | (1UL << 18) | (1UL << 19)) // shift, control, option
 
 static int quit_tries;
+static int quit_enabled;
 static void (*next_send_event)(id, SEL, id);
+static int sidebar_send_event(id event); // sidebar.m
+static int sidebar_wanted(void);         // sidebar.m
+static void cursor_install(void);        // cursor.m
 
 static int quit_is_command_q(id event)
 {
@@ -34,17 +38,24 @@ static int quit_is_command_q(id event)
 
 static void hook_send_event(id app, SEL selector, id event)
 {
-	if (event != nil && quit_is_command_q(event)) {
+	if (event != nil && quit_enabled && quit_is_command_q(event)) {
 		shim_log("overlay_shim quitkey: Command-Q, quitting pid=%d\n", getpid());
 		// The run script waits on this process and kills the rest of the prefix once it ends.
 		kill(getpid(), SIGKILL);
 		return;
 	}
+	// The quick settings sidebar takes its shortcut, and the keys and clicks it is shown for
+	if (event != nil && sidebar_send_event(event))
+		return;
 	next_send_event(app, selector, event);
 }
 
 static void quit_install(void)
 {
+	// The quick settings hold the game's cursor calls while they are open; counting its hides
+	// starts as soon as AppKit is in, before the game has a window
+	if (sidebar_wanted())
+		cursor_install();
 	id *app_slot = (id *)dlsym(RTLD_DEFAULT, "NSApp");
 	id app = app_slot != NULL ? *app_slot : nil;
 
@@ -58,14 +69,16 @@ static void quit_install(void)
 
 	Class app_class = object_getClass(app);
 	int hooked = interpose(app_class, "sendEvent:", (IMP)hook_send_event, (IMP *)&next_send_event);
-	shim_log("overlay_shim quitkey: Command-Q quits %s on %s\n", hooked ? "armed" : "failed",
+	shim_log("overlay_shim quitkey: Command-Q quits %s, quick settings %s, on %s\n",
+	         !quit_enabled ? "off" : hooked ? "armed" : "failed", !sidebar_wanted() ? "off" : hooked ? "armed" : "failed",
 	         class_getName(app_class));
 }
 
 static void quitkey_init(void)
 {
 	const char *off = getenv("BRIDGEPLAY_COMMAND_Q");
-	if (off != NULL && strcmp(off, "0") == 0)
+	quit_enabled = off == NULL || strcmp(off, "0") != 0;
+	if (!quit_enabled && !sidebar_wanted())
 		return;
 	dispatch_async(dispatch_get_main_queue(), ^{ quit_install(); });
 }
